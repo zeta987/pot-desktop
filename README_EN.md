@@ -56,6 +56,10 @@
 | Click the top left icon on any translation panel to start clipboard listening. Copied text will be translated automatically. | Press shortcut, select area to OCR | Press shortcut, select area to translate |
 | <img src="asset/eg4.gif"/>                                                                                                   | <img src="asset/eg5.gif"/>         | <img src="asset/eg6.gif"/>               |
 
+| Chat Follow-up |
+| -------------- |
+| Click the "Chat" button on any translation or recognition result panel to open a multi-turn conversation window. Ask follow-up questions about LLM results, edit messages, regenerate responses, and customize the system prompt. |
+
 <div align="center">
 
 # Features
@@ -71,6 +75,7 @@
 -   [x] Support Windows, macOS and Linux
 -   [x] Support Wayland (Tested on KDE, Gnome and Hyprland)
 -   [x] Multi-language support
+-   [x] Chat follow-up conversations (ask follow-up questions, edit and regenerate LLM translation/recognition results)
 
 <div align="center">
 

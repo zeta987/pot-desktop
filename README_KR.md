@@ -56,6 +56,10 @@
 | 클립보드 모니터링 옵션을 통해, 텍스트를 복사하면 자동으로 번역합니다 | 화면캡쳐를 통해 문자를 인식합니다 | 화면을 캡쳐하면 인식한 문장을 번역합니다 |
 | <img src="asset/eg4.gif"/>                                           | <img src="asset/eg5.gif"/>        | <img src="asset/eg6.gif"/>               |
 
+| Chat 후속 대화 |
+| -------------- |
+| 번역 또는 인식 결과 패널에서 "Chat" 버튼을 클릭하면 다중 턴 대화 창이 열립니다. LLM 결과에 대해 후속 질문을 하고, 메시지를 편집하고, 응답을 재생성하고, 시스템 프롬프트를 사용자 정의할 수 있습니다. |
+
 <div align="center">
 
 # 기능
@@ -71,6 +75,7 @@
 -   [x] 운영체제 지원 - Windows, macOS and Linux
 -   [x] Wayland 지원 (Tested on KDE, Gnome and Hyprland)
 -   [x] 다중언어 지원
+-   [x] Chat 후속 대화 (LLM 번역/인식 결과에 대해 후속 질문, 편집 및 재생성)
 
 <div align="center">
 
