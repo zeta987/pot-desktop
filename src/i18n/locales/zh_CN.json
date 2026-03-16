@@ -466,7 +466,24 @@
             "copy_img": "复制图片",
             "copy_text": "复制",
             "delete_newline": "删除换行",
-            "delete_space": "删除空格"
+            "delete_space": "删除空格",
+            "preview_markdown": "预览 Markdown",
+            "edit_text": "编辑文字",
+            "follow_up": "追问对话"
+        },
+        "chat": {
+            "title": "追问对话",
+            "send": "发送",
+            "placeholder": "输入追问内容…",
+            "follow_up": "追问",
+            "clear": "清空",
+            "system_prompt": "系统提示词",
+            "edit_confirm": "确认",
+            "edit_cancel": "取消",
+            "regenerate_prompt": "从此处重新生成？",
+            "regenerate": "重新生成",
+            "yes": "是",
+            "no": "否"
         }
     }
 }

@@ -2,7 +2,7 @@ import { appWindow } from '@tauri-apps/api/window';
 import { BrowserRouter } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { warn } from 'tauri-plugin-log-api';
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { useTheme } from 'next-themes';
 
 import { invoke } from '@tauri-apps/api/tauri';
@@ -15,6 +15,8 @@ import Config from './window/Config';
 import { useConfig } from './hooks';
 import './style.css';
 import './i18n';
+
+const Chat = React.lazy(() => import('./window/Chat'));
 
 const windowMap = {
     translate: <Translate />,
@@ -113,5 +115,16 @@ export default function App() {
         }
     }, [appFont, appFallbackFont, appFontSize]);
 
-    return <BrowserRouter>{windowMap[appWindow.label]}</BrowserRouter>;
+    const getWindow = (label) => {
+        if (label in windowMap) return windowMap[label];
+        if (label.startsWith('chat'))
+            return (
+                <Suspense fallback={null}>
+                    <Chat />
+                </Suspense>
+            );
+        return null;
+    };
+
+    return <BrowserRouter>{getWindow(appWindow.label)}</BrowserRouter>;
 }

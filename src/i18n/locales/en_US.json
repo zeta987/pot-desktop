@@ -466,7 +466,24 @@
             "copy_img": "Copy Image",
             "copy_text": "Copy",
             "delete_newline": "Delete Newline",
-            "delete_space": "Delete Space"
+            "delete_space": "Delete Space",
+            "preview_markdown": "Preview Markdown",
+            "edit_text": "Edit Text",
+            "follow_up": "Follow-up Chat"
+        },
+        "chat": {
+            "title": "Follow-up Chat",
+            "send": "Send",
+            "placeholder": "Type your follow-up question...",
+            "follow_up": "Follow-up",
+            "clear": "Clear",
+            "system_prompt": "System Prompt",
+            "edit_confirm": "Confirm",
+            "edit_cancel": "Cancel",
+            "regenerate_prompt": "Regenerate from this point?",
+            "regenerate": "Regenerate",
+            "yes": "Yes",
+            "no": "No"
         }
     }
 }

@@ -409,3 +409,38 @@ pub fn updater_window() {
     window.set_size(tauri::LogicalSize::new(600, 400)).unwrap();
     window.center().unwrap();
 }
+
+pub fn chat_window(label: &str) {
+    let app_handle = APP.get().unwrap();
+
+    let mut builder = tauri::WindowBuilder::new(
+        app_handle,
+        label,
+        tauri::WindowUrl::App("index.html".into()),
+    )
+    .additional_browser_args("--disable-web-security")
+    .focused(true)
+    .title("Chat")
+    .visible(false);
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(true).decorations(false);
+    }
+
+    let window = builder.build().unwrap();
+
+    #[cfg(not(target_os = "linux"))]
+    set_shadow(&window, true).unwrap_or_default();
+
+    window
+        .set_size(tauri::LogicalSize::new(500, 600))
+        .unwrap();
+    window.center().unwrap();
+}

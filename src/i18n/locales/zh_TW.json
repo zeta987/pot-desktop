@@ -463,7 +463,24 @@
             "copy_img": "複製圖片",
             "copy_text": "複製",
             "delete_newline": "刪除換行",
-            "delete_space": "刪除空格"
+            "delete_space": "刪除空格",
+            "preview_markdown": "預覽 Markdown",
+            "edit_text": "編輯文字",
+            "follow_up": "追問對話"
+        },
+        "chat": {
+            "title": "追問對話",
+            "send": "傳送",
+            "placeholder": "輸入追問內容…",
+            "follow_up": "追問",
+            "clear": "清空",
+            "system_prompt": "系統提示詞",
+            "edit_confirm": "確認",
+            "edit_cancel": "取消",
+            "regenerate_prompt": "從此處重新生成？",
+            "regenerate": "重新生成",
+            "yes": "是",
+            "no": "否"
         }
     }
 }

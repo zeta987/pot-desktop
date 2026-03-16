@@ -22,7 +22,9 @@ import { HiOutlineVolumeUp } from 'react-icons/hi';
 import { semanticColors } from '@nextui-org/theme';
 import toast, { Toaster } from 'react-hot-toast';
 import { MdContentCopy } from 'react-icons/md';
+import { BsChatDots } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
+import { invoke } from '@tauri-apps/api/tauri';
 import Database from 'tauri-plugin-sql-api';
 import { GiCycle } from 'react-icons/gi';
 import { useTheme } from 'next-themes';
@@ -38,6 +40,8 @@ import { sourceTextAtom, detectLanguageAtom } from '../SourceArea';
 import { invoke_plugin } from '../../../../utils/invoke_plugin';
 import * as builtinServices from '../../../../services/translate';
 import * as builtinTtsServices from '../../../../services/tts';
+import MarkdownRenderer from '../../../../components/MarkdownRenderer';
+import { isLlmService } from '../../../../utils/llm_services';
 
 import { info, error as logError } from 'tauri-plugin-log-api';
 import {
@@ -497,12 +501,18 @@ export default function TargetArea(props) {
                     {/* result content */}
                     <CardBody className={`p-[12px] pb-0 ${hide && 'h-0 p-0'}`}>
                         {typeof result === 'string' ? (
-                            <textarea
-                                ref={textAreaRef}
-                                className={`text-[${appFontSize}px] h-0 resize-none bg-transparent select-text outline-none`}
-                                readOnly
-                                value={result}
-                            />
+                            isLlmService(currentTranslateServiceInstanceKey) && result !== '' ? (
+                                <div className='overflow-y-auto select-text'>
+                                    <MarkdownRenderer fontSize={appFontSize}>{result}</MarkdownRenderer>
+                                </div>
+                            ) : (
+                                <textarea
+                                    ref={textAreaRef}
+                                    className={`text-[${appFontSize}px] h-0 resize-none bg-transparent select-text outline-none`}
+                                    readOnly
+                                    value={result}
+                                />
+                            )
                         ) : (
                             <div>
                                 {result['pronunciations'] &&
@@ -784,6 +794,43 @@ export default function TargetArea(props) {
                                     <TbTransformFilled className='text-[16px]' />
                                 </Button>
                             </Tooltip>
+                            {/* follow-up chat button */}
+                            {getServiceName(currentTranslateServiceInstanceKey) === 'openai' &&
+                                typeof result === 'string' &&
+                                result !== '' && (
+                                    <Tooltip content={t('recognize.follow_up')}>
+                                        <Button
+                                            isIconOnly
+                                            variant='light'
+                                            size='sm'
+                                            onPress={() => {
+                                                const config =
+                                                    serviceInstanceConfigMap[currentTranslateServiceInstanceKey] ?? {};
+                                                invoke('open_chat_window', {
+                                                    context: JSON.stringify({
+                                                        source: 'translate',
+                                                        sourceText: sourceText,
+                                                        resultText: result,
+                                                        apiConfig: {
+                                                            service: config.service || 'openai',
+                                                            requestPath: config.requestPath,
+                                                            model: config.model,
+                                                            apiKey: config.apiKey,
+                                                            stream: config.stream ?? true,
+                                                            requestArguments: config.requestArguments,
+                                                        },
+                                                        initialMessages: [
+                                                            { role: 'user', content: sourceText },
+                                                            { role: 'assistant', content: result },
+                                                        ],
+                                                    }),
+                                                });
+                                            }}
+                                        >
+                                            <BsChatDots className='text-[16px]' />
+                                        </Button>
+                                    </Tooltip>
+                                )}
                             {/* error retry button */}
                             <Tooltip content={t('translate.retry')}>
                                 <Button

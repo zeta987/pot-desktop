@@ -25,3 +25,31 @@ html {
 *::-webkit-scrollbar-thumb:hover {
     background: #c0c1c550;
 }
+
+/* Markdown body styles */
+.markdown-body {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.6;
+}
+
+.markdown-body > *:first-child {
+    margin-top: 0;
+}
+
+.markdown-body > *:last-child {
+    margin-bottom: 0;
+}
+
+.markdown-pre {
+    margin: 0.5rem 0;
+    overflow-x: auto;
+}
+
+.markdown-body table {
+    border-spacing: 0;
+}
+
+.markdown-body img {
+    max-width: 100%;
+}

@@ -41,6 +41,9 @@ pub static APP: OnceCell<tauri::AppHandle> = OnceCell::new();
 // Text to be translated
 pub struct StringWrapper(pub Mutex<String>);
 
+// Chat window context storage
+pub struct ChatContextMap(pub Mutex<std::collections::HashMap<String, String>>);
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, cwd| {
@@ -85,6 +88,7 @@ fn main() {
                 config_window();
             }
             app.manage(StringWrapper(Mutex::new("".to_string())));
+            app.manage(ChatContextMap(Mutex::new(std::collections::HashMap::new())));
             // Update Tray Menu
             update_tray(app.app_handle(), "".to_string(), "".to_string());
             // Start http server
@@ -147,7 +151,9 @@ fn main() {
             local,
             install_plugin,
             font_list,
-            aliyun
+            aliyun,
+            open_chat_window,
+            get_chat_context
         ])
         .on_system_tray_event(tray_event_handler)
         .build(tauri::generate_context!())
