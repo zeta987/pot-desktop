@@ -80,6 +80,21 @@ export default function Translate() {
     const [ttsServiceInstanceList] = useConfig('tts_service_list', ['lingva_tts']);
     const [collectionServiceInstanceList] = useConfig('collection_service_list', []);
     const [hideLanguage] = useConfig('hide_language', false);
+    const [pausedServices, setPausedServices] = useConfig('translate_popup_paused', []);
+
+    // Defensive filter: remove stale keys not in current service list
+    const validPausedServices = (pausedServices ?? []).filter((key) =>
+        (translateServiceInstanceList ?? []).includes(key)
+    );
+
+    const togglePauseService = (serviceInstanceKey) => {
+        if (validPausedServices.includes(serviceInstanceKey)) {
+            setPausedServices(validPausedServices.filter((k) => k !== serviceInstanceKey));
+        } else {
+            setPausedServices([...validPausedServices, serviceInstanceKey]);
+        }
+    };
+
     const [pined, setPined] = useState(false);
     const [pluginList, setPluginList] = useState(null);
     const [serviceInstanceConfigMap, setServiceInstanceConfigMap] = useState(null);
@@ -324,6 +339,10 @@ export default function Translate() {
                                                                     }
                                                                     pluginList={pluginList}
                                                                     serviceInstanceConfigMap={serviceInstanceConfigMap}
+                                                                    isPaused={validPausedServices.includes(
+                                                                        serviceInstanceKey
+                                                                    )}
+                                                                    onTogglePause={togglePauseService}
                                                                 />
                                                                 <Spacer y={2} />
                                                             </div>

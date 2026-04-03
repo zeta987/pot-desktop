@@ -454,7 +454,9 @@
             "copy": "複製",
             "retry": "重試",
             "delete_newline": "刪除換行",
-            "translate_back": "翻譯回原文"
+            "translate_back": "翻譯回原文",
+            "pause": "暫停",
+            "resume": "恢復"
         },
         "recognize": {
             "recognize": "辨識",

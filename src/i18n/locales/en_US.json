@@ -458,7 +458,9 @@
             "copy": "Copy",
             "retry": "Try again",
             "delete_newline": "Delete Newline",
-            "translate_back": "Translation back to the original"
+            "translate_back": "Translation back to the original",
+            "pause": "Pause",
+            "resume": "Resume"
         },
         "recognize": {
             "recognize": "Recognize",
