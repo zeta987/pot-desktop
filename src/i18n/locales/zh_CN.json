@@ -458,7 +458,9 @@
             "copy": "复制",
             "retry": "重试",
             "delete_newline": "删除换行",
-            "translate_back": "翻译回原文"
+            "translate_back": "翻译回原文",
+            "pause": "暂停",
+            "resume": "恢复"
         },
         "recognize": {
             "recognize": "重新识别",

@@ -21,7 +21,7 @@ import { TbTransformFilled } from 'react-icons/tb';
 import { HiOutlineVolumeUp } from 'react-icons/hi';
 import { semanticColors } from '@nextui-org/theme';
 import toast, { Toaster } from 'react-hot-toast';
-import { MdContentCopy } from 'react-icons/md';
+import { MdContentCopy, MdPause, MdPlayArrow } from 'react-icons/md';
 import { BsChatDots } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/tauri';
@@ -56,7 +56,16 @@ import {
 let translateID = [];
 
 export default function TargetArea(props) {
-    const { index, name, translateServiceInstanceList, pluginList, serviceInstanceConfigMap, ...drag } = props;
+    const {
+        index,
+        name,
+        translateServiceInstanceList,
+        pluginList,
+        serviceInstanceConfigMap,
+        isPaused,
+        onTogglePause,
+        ...drag
+    } = props;
 
     const [currentTranslateServiceInstanceKey, setCurrentTranslateServiceInstanceKey] = useState(name);
     function getInstanceName(instanceKey, serviceNameSupplier) {
@@ -101,6 +110,7 @@ export default function TargetArea(props) {
         setResult('');
         setError('');
         if (
+            !isPaused &&
             sourceText.trim() !== '' &&
             sourceLanguage &&
             targetLanguage &&
@@ -125,6 +135,7 @@ export default function TargetArea(props) {
         hideWindow,
         currentTranslateServiceInstanceKey,
         clipboardMonitor,
+        isPaused,
     ]);
 
     // todo: history panel use service instance key
@@ -374,7 +385,7 @@ export default function TargetArea(props) {
     const [boundRef, bounds] = useMeasure({ scroll: true });
     const springs = useSpring({
         from: { height: 0 },
-        to: { height: hide ? 0 : bounds.height },
+        to: { height: hide || isPaused ? 0 : bounds.height },
     });
 
     return (
@@ -384,7 +395,7 @@ export default function TargetArea(props) {
         >
             <Toaster />
             <CardHeader
-                className={`flex justify-between py-1 px-0 bg-content2 h-[30px] ${hide ? 'rounded-[10px]' : 'rounded-t-[10px]'}`}
+                className={`flex justify-between py-1 px-0 bg-content2 h-[30px] ${hide || isPaused ? 'rounded-[10px]' : 'rounded-t-[10px]'} ${isPaused ? 'opacity-60' : ''}`}
                 {...drag}
             >
                 {/* current service instance and available service instance to change */}
@@ -434,6 +445,9 @@ export default function TargetArea(props) {
                             className='max-h-[40vh] overflow-y-auto'
                             onAction={(key) => {
                                 setCurrentTranslateServiceInstanceKey(key);
+                                if (isPaused && key !== currentTranslateServiceInstanceKey) {
+                                    onTogglePause(name);
+                                }
                             }}
                         >
                             {translateServiceInstanceList.map((instanceKey) => {
@@ -469,7 +483,7 @@ export default function TargetArea(props) {
                         </DropdownMenu>
                     </Dropdown>
                     <PulseLoader
-                        loading={isLoading}
+                        loading={isLoading && !isPaused}
                         color={theme === 'dark' ? semanticColors.dark.default[500] : semanticColors.light.default[500]}
                         size={8}
                         cssOverride={{
@@ -479,21 +493,34 @@ export default function TargetArea(props) {
                         }}
                     />
                 </div>
-                {/* content collapse */}
+                {/* pause/resume and content collapse */}
                 <div className='flex'>
-                    <Button
-                        size='sm'
-                        isIconOnly
-                        variant='light'
-                        className='h-[20px] w-[20px]'
-                        onPress={() => setHide(!hide)}
-                    >
-                        {hide ? (
-                            <BiExpandVertical className='text-[16px]' />
-                        ) : (
-                            <BiCollapseVertical className='text-[16px]' />
-                        )}
-                    </Button>
+                    <Tooltip content={isPaused ? t('translate.resume') : t('translate.pause')}>
+                        <Button
+                            size='sm'
+                            isIconOnly
+                            variant='light'
+                            className='h-[20px] w-[20px]'
+                            onPress={() => onTogglePause(name)}
+                        >
+                            {isPaused ? <MdPlayArrow className='text-[16px]' /> : <MdPause className='text-[16px]' />}
+                        </Button>
+                    </Tooltip>
+                    {!isPaused && (
+                        <Button
+                            size='sm'
+                            isIconOnly
+                            variant='light'
+                            className='h-[20px] w-[20px]'
+                            onPress={() => setHide(!hide)}
+                        >
+                            {hide ? (
+                                <BiExpandVertical className='text-[16px]' />
+                            ) : (
+                                <BiCollapseVertical className='text-[16px]' />
+                            )}
+                        </Button>
+                    )}
                 </div>
             </CardHeader>
             <animated.div style={{ ...springs }}>
