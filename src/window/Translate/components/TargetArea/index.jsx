@@ -44,6 +44,7 @@ import MarkdownRenderer from '../../../../components/MarkdownRenderer';
 import { isLlmService } from '../../../../utils/llm_services';
 import { createTargetAreaReveal } from '../../utils/target_area_reveal';
 import { runTranslation } from '../../utils/translation_run';
+import { createTranslationRuns } from '../../utils/translation_runs';
 
 import { info, error as logError } from 'tauri-plugin-log-api';
 import {
@@ -55,7 +56,7 @@ import {
     whetherPluginService,
 } from '../../../../utils/service_instance';
 
-let translateID = [];
+const translationRuns = createTranslationRuns();
 
 /**
  * Resolve a Service Instance's translate call for one Translation Run.
@@ -181,8 +182,7 @@ export default function TargetArea(props) {
     };
 
     const translate = async () => {
-        let id = nanoid();
-        translateID[index] = id;
+        const run = translationRuns.start(index);
 
         const reveal = createTargetAreaReveal(setHide);
 
@@ -207,7 +207,7 @@ export default function TargetArea(props) {
                 to: languages[newTargetLanguage],
                 config: instanceConfig,
                 detect: detectLanguage,
-                isSuperseded: () => translateID[index] !== id,
+                isSuperseded: () => !run.isCurrent(),
                 applyResult: (v) => setResult(typeof v === 'string' ? v.trim() : v),
                 log: {
                     resolved: (v) => info(`[${currentTranslateServiceInstanceKey}]resolve:` + v),
@@ -628,6 +628,7 @@ export default function TargetArea(props) {
                                     size='sm'
                                     isDisabled={typeof result !== 'string' || result === ''}
                                     onPress={async () => {
+                                        const run = translationRuns.start(index);
                                         setError('');
                                         const reveal = createTargetAreaReveal(setHide);
                                         const translateServiceName = getServiceName(currentTranslateServiceInstanceKey);
@@ -666,6 +667,7 @@ export default function TargetArea(props) {
                                                 // The two paths have always disagreed on what to hand a service as
                                                 // the detected language here. Kept as-is so this stays a refactor.
                                                 detect: isPluginService ? detectLanguage : newSourceLanguage,
+                                                isSuperseded: () => !run.isCurrent(),
                                                 applyResult: (v) => setResult(v === result ? v + ' ' : v.trim()),
                                             },
                                             { setIsLoading, setError, setResult, reveal }
