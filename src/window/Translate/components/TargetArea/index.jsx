@@ -182,7 +182,17 @@ export default function TargetArea(props) {
                 reveal.collapse();
                 const instanceConfig = serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
                 instanceConfig['enable'] = 'true';
-                let [func, utils] = await invoke_plugin('translate', translateServiceName);
+                let plugin;
+                try {
+                    plugin = await invoke_plugin('translate', translateServiceName);
+                } catch (e) {
+                    if (translateID[index] !== id) return;
+                    setError(e.toString());
+                    setIsLoading(false);
+                    reveal.open();
+                    return;
+                }
+                const [func, utils] = plugin;
                 func(sourceText.trim(), pluginInfo.language[sourceLanguage], pluginInfo.language[newTargetLanguage], {
                     config: instanceConfig,
                     detect: detectLanguage,
@@ -719,10 +729,19 @@ export default function TargetArea(props) {
                                                 const instanceConfig =
                                                     serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
                                                 instanceConfig['enable'] = 'true';
-                                                let [func, utils] = await invoke_plugin(
-                                                    'translate',
-                                                    getServiceName(currentTranslateServiceInstanceKey)
-                                                );
+                                                let plugin;
+                                                try {
+                                                    plugin = await invoke_plugin(
+                                                        'translate',
+                                                        getServiceName(currentTranslateServiceInstanceKey)
+                                                    );
+                                                } catch (e) {
+                                                    setError(e.toString());
+                                                    setIsLoading(false);
+                                                    reveal.open();
+                                                    return;
+                                                }
+                                                const [func, utils] = plugin;
                                                 func(
                                                     result.trim(),
                                                     pluginInfo.language[newSourceLanguage],

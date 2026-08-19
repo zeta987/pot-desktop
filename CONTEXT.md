@@ -31,6 +31,13 @@ An Enabled Service Instance that is not Paused. These are the instances that
 actually translate.
 _Avoid_: running, live, working
 
+**Translation Run**:
+One attempt to translate the current source text with one Service Instance, from the
+moment the text is handed over until a result, a stream of chunks, or a failure comes
+back. A Paused Run is a stretch of Service Instances; a Translation Run is a single
+attempt by one of them. The two share a word and nothing else.
+_Avoid_: request, call, job, task
+
 ### Translate window layout
 
 **Target Area**:
