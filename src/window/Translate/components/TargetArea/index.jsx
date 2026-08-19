@@ -43,6 +43,7 @@ import * as builtinTtsServices from '../../../../services/tts';
 import MarkdownRenderer from '../../../../components/MarkdownRenderer';
 import { isLlmService } from '../../../../utils/llm_services';
 import { createTargetAreaReveal } from '../../utils/target_area_reveal';
+import { runTranslation } from '../../utils/translation_run';
 
 import { info, error as logError } from 'tauri-plugin-log-api';
 import {
@@ -55,6 +56,22 @@ import {
 } from '../../../../utils/service_instance';
 
 let translateID = [];
+
+/**
+ * Resolve a Service Instance's translate call for one Translation Run.
+ *
+ * A plugin has to be loaded first and hands back the `utils` its own call expects, while
+ * a built-in service is already there. Both come back as the same call, so a run does not
+ * have to know which kind it is driving.
+ */
+const loadTranslateCall = async (serviceName, isPluginService, instanceConfig) => {
+    if (!isPluginService) {
+        return (text, from, to, options) => builtinServices[serviceName].translate(text, from, to, options);
+    }
+    instanceConfig['enable'] = 'true';
+    const [func, utils] = await invoke_plugin('translate', serviceName);
+    return (text, from, to, options) => func(text, from, to, { ...options, utils });
+};
 
 export default function TargetArea(props) {
     const {
@@ -170,163 +187,69 @@ export default function TargetArea(props) {
         const reveal = createTargetAreaReveal(setHide);
 
         const translateServiceName = getServiceName(currentTranslateServiceInstanceKey);
+        const isPluginService = whetherPluginService(currentTranslateServiceInstanceKey);
+        const languages = isPluginService
+            ? pluginList['translate'][translateServiceName].language
+            : builtinServices[translateServiceName].Language;
 
-        if (whetherPluginService(currentTranslateServiceInstanceKey)) {
-            const pluginInfo = pluginList['translate'][translateServiceName];
-            if (sourceLanguage in pluginInfo.language && targetLanguage in pluginInfo.language) {
-                let newTargetLanguage = targetLanguage;
-                if (sourceLanguage === 'auto' && targetLanguage === detectLanguage) {
-                    newTargetLanguage = translateSecondLanguage;
-                }
-                setIsLoading(true);
-                reveal.collapse();
-                const instanceConfig = serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
-                instanceConfig['enable'] = 'true';
-                let plugin;
-                try {
-                    plugin = await invoke_plugin('translate', translateServiceName);
-                } catch (e) {
-                    if (translateID[index] !== id) return;
-                    setError(e.toString());
-                    setIsLoading(false);
-                    reveal.open();
-                    return;
-                }
-                const [func, utils] = plugin;
-                func(sourceText.trim(), pluginInfo.language[sourceLanguage], pluginInfo.language[newTargetLanguage], {
-                    config: instanceConfig,
-                    detect: detectLanguage,
-                    setResult: (v) => {
-                        if (translateID[index] !== id) return;
-                        setResult(v);
-                        reveal.open();
-                    },
-                    utils,
-                }).then(
-                    (v) => {
-                        info(`[${currentTranslateServiceInstanceKey}]resolve:` + v);
-                        if (translateID[index] !== id) return;
-                        setResult(typeof v === 'string' ? v.trim() : v);
-                        setIsLoading(false);
-                        reveal.settle(v);
-                        if (!historyDisable) {
-                            addToHistory(
-                                sourceText.trim(),
-                                detectLanguage,
-                                newTargetLanguage,
-                                translateServiceName,
-                                typeof v === 'string' ? v.trim() : v
-                            );
-                        }
-                        if (index === 0 && !clipboardMonitor) {
-                            switch (autoCopy) {
-                                case 'target':
-                                    writeText(v).then(() => {
-                                        if (hideWindow) {
-                                            sendNotification({ title: t('common.write_clipboard'), body: v });
-                                        }
-                                    });
-                                    break;
-                                case 'source_target':
-                                    writeText(sourceText.trim() + '\n\n' + v).then(() => {
-                                        if (hideWindow) {
-                                            sendNotification({
-                                                title: t('common.write_clipboard'),
-                                                body: sourceText.trim() + '\n\n' + v,
-                                            });
-                                        }
-                                    });
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-                    },
-                    (e) => {
-                        info(`[${currentTranslateServiceInstanceKey}]reject:` + e);
-                        if (translateID[index] !== id) return;
-                        setError(e.toString());
-                        setIsLoading(false);
-                        reveal.open();
-                    }
-                );
-            } else {
-                setError('Language not supported');
-                reveal.open();
-            }
-        } else {
-            const LanguageEnum = builtinServices[translateServiceName].Language;
-            if (sourceLanguage in LanguageEnum && targetLanguage in LanguageEnum) {
-                let newTargetLanguage = targetLanguage;
-                if (sourceLanguage === 'auto' && targetLanguage === detectLanguage) {
-                    newTargetLanguage = translateSecondLanguage;
-                }
-                setIsLoading(true);
-                reveal.collapse();
-                const instanceConfig = serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
-                builtinServices[translateServiceName]
-                    .translate(sourceText.trim(), LanguageEnum[sourceLanguage], LanguageEnum[newTargetLanguage], {
-                        config: instanceConfig,
-                        detect: detectLanguage,
-                        setResult: (v) => {
-                            if (translateID[index] !== id) return;
-                            setResult(v);
-                            reveal.open();
-                        },
-                    })
-                    .then(
-                        (v) => {
-                            info(`[${currentTranslateServiceInstanceKey}]resolve:` + v);
-                            if (translateID[index] !== id) return;
-                            setResult(typeof v === 'string' ? v.trim() : v);
-                            setIsLoading(false);
-                            reveal.settle(v);
-                            if (!historyDisable) {
-                                addToHistory(
-                                    sourceText.trim(),
-                                    detectLanguage,
-                                    newTargetLanguage,
-                                    translateServiceName,
-                                    typeof v === 'string' ? v.trim() : v
-                                );
-                            }
-                            if (index === 0 && !clipboardMonitor) {
-                                switch (autoCopy) {
-                                    case 'target':
-                                        writeText(v).then(() => {
-                                            if (hideWindow) {
-                                                sendNotification({ title: t('common.write_clipboard'), body: v });
-                                            }
-                                        });
-                                        break;
-                                    case 'source_target':
-                                        writeText(sourceText.trim() + '\n\n' + v).then(() => {
-                                            if (hideWindow) {
-                                                sendNotification({
-                                                    title: t('common.write_clipboard'),
-                                                    body: sourceText.trim() + '\n\n' + v,
-                                                });
-                                            }
-                                        });
-                                        break;
-                                    default:
-                                        break;
-                                }
-                            }
-                        },
-                        (e) => {
-                            info(`[${currentTranslateServiceInstanceKey}]reject:` + e);
-                            if (translateID[index] !== id) return;
-                            setError(e.toString());
-                            setIsLoading(false);
-                            reveal.open();
-                        }
-                    );
-            } else {
-                setError('Language not supported');
-                reveal.open();
-            }
+        let newTargetLanguage = targetLanguage;
+        if (sourceLanguage === 'auto' && targetLanguage === detectLanguage) {
+            newTargetLanguage = translateSecondLanguage;
         }
+        const instanceConfig = serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
+
+        await runTranslation(
+            {
+                isLanguagePairSupported: sourceLanguage in languages && targetLanguage in languages,
+                load: () => loadTranslateCall(translateServiceName, isPluginService, instanceConfig),
+                text: sourceText.trim(),
+                from: languages[sourceLanguage],
+                to: languages[newTargetLanguage],
+                config: instanceConfig,
+                detect: detectLanguage,
+                isSuperseded: () => translateID[index] !== id,
+                applyResult: (v) => setResult(typeof v === 'string' ? v.trim() : v),
+                log: {
+                    resolved: (v) => info(`[${currentTranslateServiceInstanceKey}]resolve:` + v),
+                    rejected: (e) => info(`[${currentTranslateServiceInstanceKey}]reject:` + e),
+                },
+                onResolved: (v) => {
+                    if (!historyDisable) {
+                        addToHistory(
+                            sourceText.trim(),
+                            detectLanguage,
+                            newTargetLanguage,
+                            translateServiceName,
+                            typeof v === 'string' ? v.trim() : v
+                        );
+                    }
+                    if (index === 0 && !clipboardMonitor) {
+                        switch (autoCopy) {
+                            case 'target':
+                                writeText(v).then(() => {
+                                    if (hideWindow) {
+                                        sendNotification({ title: t('common.write_clipboard'), body: v });
+                                    }
+                                });
+                                break;
+                            case 'source_target':
+                                writeText(sourceText.trim() + '\n\n' + v).then(() => {
+                                    if (hideWindow) {
+                                        sendNotification({
+                                            title: t('common.write_clipboard'),
+                                            body: sourceText.trim() + '\n\n' + v,
+                                        });
+                                    }
+                                });
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                },
+            },
+            { setIsLoading, setError, setResult, reveal }
+        );
     };
 
     // hide empty textarea
@@ -707,6 +630,14 @@ export default function TargetArea(props) {
                                     onPress={async () => {
                                         setError('');
                                         const reveal = createTargetAreaReveal(setHide);
+                                        const translateServiceName = getServiceName(currentTranslateServiceInstanceKey);
+                                        const isPluginService = whetherPluginService(
+                                            currentTranslateServiceInstanceKey
+                                        );
+                                        const languages = isPluginService
+                                            ? pluginList['translate'][translateServiceName].language
+                                            : builtinServices[translateServiceName].Language;
+
                                         let newTargetLanguage = sourceLanguage;
                                         if (sourceLanguage === 'auto') {
                                             newTargetLanguage = detectLanguage;
@@ -715,113 +646,30 @@ export default function TargetArea(props) {
                                         if (sourceLanguage === 'auto') {
                                             newSourceLanguage = 'auto';
                                         }
-                                        if (whetherPluginService(currentTranslateServiceInstanceKey)) {
-                                            const pluginInfo =
-                                                pluginList['translate'][
-                                                    getServiceName(currentTranslateServiceInstanceKey)
-                                                ];
-                                            if (
-                                                newSourceLanguage in pluginInfo.language &&
-                                                newTargetLanguage in pluginInfo.language
-                                            ) {
-                                                setIsLoading(true);
-                                                reveal.collapse();
-                                                const instanceConfig =
-                                                    serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
-                                                instanceConfig['enable'] = 'true';
-                                                let plugin;
-                                                try {
-                                                    plugin = await invoke_plugin(
-                                                        'translate',
-                                                        getServiceName(currentTranslateServiceInstanceKey)
-                                                    );
-                                                } catch (e) {
-                                                    setError(e.toString());
-                                                    setIsLoading(false);
-                                                    reveal.open();
-                                                    return;
-                                                }
-                                                const [func, utils] = plugin;
-                                                func(
-                                                    result.trim(),
-                                                    pluginInfo.language[newSourceLanguage],
-                                                    pluginInfo.language[newTargetLanguage],
-                                                    {
-                                                        config: instanceConfig,
-                                                        detect: detectLanguage,
-                                                        setResult: (v) => {
-                                                            setResult(v);
-                                                            reveal.open();
-                                                        },
-                                                        utils,
-                                                    }
-                                                ).then(
-                                                    (v) => {
-                                                        if (v === result) {
-                                                            setResult(v + ' ');
-                                                        } else {
-                                                            setResult(v.trim());
-                                                        }
-                                                        setIsLoading(false);
-                                                        reveal.settle(v);
-                                                    },
-                                                    (e) => {
-                                                        setError(e.toString());
-                                                        setIsLoading(false);
-                                                        reveal.open();
-                                                    }
-                                                );
-                                            } else {
-                                                setError('Language not supported');
-                                                reveal.open();
-                                            }
-                                        } else {
-                                            const LanguageEnum =
-                                                builtinServices[getServiceName(currentTranslateServiceInstanceKey)]
-                                                    .Language;
-                                            if (
-                                                newSourceLanguage in LanguageEnum &&
-                                                newTargetLanguage in LanguageEnum
-                                            ) {
-                                                setIsLoading(true);
-                                                reveal.collapse();
-                                                const instanceConfig =
-                                                    serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
-                                                builtinServices[getServiceName(currentTranslateServiceInstanceKey)]
-                                                    .translate(
-                                                        result.trim(),
-                                                        LanguageEnum[newSourceLanguage],
-                                                        LanguageEnum[newTargetLanguage],
-                                                        {
-                                                            config: instanceConfig,
-                                                            detect: newSourceLanguage,
-                                                            setResult: (v) => {
-                                                                setResult(v);
-                                                                reveal.open();
-                                                            },
-                                                        }
-                                                    )
-                                                    .then(
-                                                        (v) => {
-                                                            if (v === result) {
-                                                                setResult(v + ' ');
-                                                            } else {
-                                                                setResult(v.trim());
-                                                            }
-                                                            setIsLoading(false);
-                                                            reveal.settle(v);
-                                                        },
-                                                        (e) => {
-                                                            setError(e.toString());
-                                                            setIsLoading(false);
-                                                            reveal.open();
-                                                        }
-                                                    );
-                                            } else {
-                                                setError('Language not supported');
-                                                reveal.open();
-                                            }
-                                        }
+                                        const instanceConfig =
+                                            serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
+
+                                        await runTranslation(
+                                            {
+                                                isLanguagePairSupported:
+                                                    newSourceLanguage in languages && newTargetLanguage in languages,
+                                                load: () =>
+                                                    loadTranslateCall(
+                                                        translateServiceName,
+                                                        isPluginService,
+                                                        instanceConfig
+                                                    ),
+                                                text: result.trim(),
+                                                from: languages[newSourceLanguage],
+                                                to: languages[newTargetLanguage],
+                                                config: instanceConfig,
+                                                // The two paths have always disagreed on what to hand a service as
+                                                // the detected language here. Kept as-is so this stays a refactor.
+                                                detect: isPluginService ? detectLanguage : newSourceLanguage,
+                                                applyResult: (v) => setResult(v === result ? v + ' ' : v.trim()),
+                                            },
+                                            { setIsLoading, setError, setResult, reveal }
+                                        );
                                     }}
                                 >
                                     <TbTransformFilled className='text-[16px]' />
