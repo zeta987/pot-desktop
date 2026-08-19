@@ -3,7 +3,8 @@
 wget https://nodejs.org/dist/v19.8.1/node-v19.8.1-linux-x64.tar.xz
 tar -Jxvf ./node-v19.8.1-linux-x64.tar.xz
 export PATH=$(pwd)/node-v19.8.1-linux-x64/bin:$PATH
-npm install pnpm -g
+# Pinned: the container ships Node 19, and pnpm 11 refuses anything below 22.13.
+npm install pnpm@10 -g
 
 rustup target add "$INPUT_TARGET"
 rustup toolchain install --force-non-host "$INPUT_TOOLCHAIN"
