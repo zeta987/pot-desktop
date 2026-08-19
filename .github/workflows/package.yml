@@ -116,14 +116,19 @@ jobs:
               run: |
                   export TAURI_PRIVATE_KEY="${{ secrets.TAURI_PRIVATE_KEY }}"
                   export TAURI_KEY_PASSWORD="${{ secrets.TAURI_KEY_PASSWORD }}"
-                  export APPLE_SIGNING_IDENTITY="${{ secrets.APPLE_SIGNING_IDENTITY }}"
-                  export APPLE_CERTIFICATE="${{ secrets.APPLE_CERTIFICATE }}"
-                  export APPLE_CERTIFICATE_PASSWORD="${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
-                  export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
-                  export APPLE_API_ISSUER="${{ secrets.APPLE_API_ISSUER }}"
-                  export APPLE_API_KEY="${{ secrets.APPLE_API_KEY }}"
-                  export APPLE_ID="${{ secrets.APPLE_ID }}"
-                  export APPLE_PASSWORD="${{ secrets.APPLE_PASSWORD }}"
+                  # Only ask for signing when a certificate is actually present.
+                  # Tauri treats these as set-but-empty and fails importing the
+                  # keychain certificate rather than skipping the step.
+                  if [ -n "${{ secrets.APPLE_CERTIFICATE }}" ]; then
+                      export APPLE_SIGNING_IDENTITY="${{ secrets.APPLE_SIGNING_IDENTITY }}"
+                      export APPLE_CERTIFICATE="${{ secrets.APPLE_CERTIFICATE }}"
+                      export APPLE_CERTIFICATE_PASSWORD="${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
+                      export APPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}"
+                      export APPLE_API_ISSUER="${{ secrets.APPLE_API_ISSUER }}"
+                      export APPLE_API_KEY="${{ secrets.APPLE_API_KEY }}"
+                      export APPLE_ID="${{ secrets.APPLE_ID }}"
+                      export APPLE_PASSWORD="${{ secrets.APPLE_PASSWORD }}"
+                  fi
                   pnpm tauri build --target ${{ matrix.target }}
                   sudo chmod +x src-tauri/resources/*
                   chmod +x src-tauri/resources/*
