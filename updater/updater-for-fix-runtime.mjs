@@ -10,12 +10,18 @@ async function resolveUpdater() {
     let version = await getVersion(TOKEN);
     let changelog = await getChangeLog(TOKEN);
 
-    const windows_x86_64 = `https://dl.pot-app.com/https://github.com/pot-app/pot-desktop/releases/download/${version}/pot_${version}_x64_fix_webview2_runtime-setup.nsis.zip`;
-    const windows_x86_64_sig = await getSignature(`https://github.com/pot-app/pot-desktop/releases/download/${version}/pot_${version}_x64_fix_webview2_runtime-setup.nsis.zip.sig`);
-    const windows_i686 = `https://dl.pot-app.com/https://github.com/pot-app/pot-desktop/releases/download/${version}/pot_${version}_x86_fix_webview2_runtime-setup.nsis.zip`;
-    const windows_i686_sig = await getSignature(`https://github.com/pot-app/pot-desktop/releases/download/${version}/pot_${version}_x86_fix_webview2_runtime-setup.nsis.zip.sig`);
-    const windows_aarch64 = `https://dl.pot-app.com/https://github.com/pot-app/pot-desktop/releases/download/${version}/pot_${version}_arm64_fix_webview2_runtime-setup.nsis.zip`;
-    const windows_aarch64_sig = await getSignature(`https://github.com/pot-app/pot-desktop/releases/download/${version}/pot_${version}_arm64_fix_webview2_runtime-setup.nsis.zip.sig`);
+    const windows_x86_64 = `https://github.com/zeta987/pot-desktop/releases/download/${version}/pot_${version}_x64_fix_webview2_runtime-setup.nsis.zip`;
+    const windows_x86_64_sig = await getSignature(
+        `https://github.com/zeta987/pot-desktop/releases/download/${version}/pot_${version}_x64_fix_webview2_runtime-setup.nsis.zip.sig`
+    );
+    const windows_i686 = `https://github.com/zeta987/pot-desktop/releases/download/${version}/pot_${version}_x86_fix_webview2_runtime-setup.nsis.zip`;
+    const windows_i686_sig = await getSignature(
+        `https://github.com/zeta987/pot-desktop/releases/download/${version}/pot_${version}_x86_fix_webview2_runtime-setup.nsis.zip.sig`
+    );
+    const windows_aarch64 = `https://github.com/zeta987/pot-desktop/releases/download/${version}/pot_${version}_arm64_fix_webview2_runtime-setup.nsis.zip`;
+    const windows_aarch64_sig = await getSignature(
+        `https://github.com/zeta987/pot-desktop/releases/download/${version}/pot_${version}_arm64_fix_webview2_runtime-setup.nsis.zip.sig`
+    );
 
     let updateData = {
         name: version,
@@ -24,7 +30,7 @@ async function resolveUpdater() {
         platforms: {
             'windows-x86_64': { signature: windows_x86_64_sig, url: windows_x86_64 },
             'windows-i686': { signature: windows_i686_sig, url: windows_i686 },
-            'windows-aarch64': { signature: windows_aarch64_sig, url: windows_aarch64 }
+            'windows-aarch64': { signature: windows_aarch64_sig, url: windows_aarch64 },
         },
     };
     fs.writeFile('./update-fix-runtime.json', JSON.stringify(updateData), (e) => {
@@ -33,7 +39,7 @@ async function resolveUpdater() {
 }
 
 async function getVersion(token) {
-    const res = await fetch('https://api.github.com/repos/pot-app/pot-desktop/releases/latest', {
+    const res = await fetch('https://api.github.com/repos/zeta987/pot-desktop/releases/latest', {
         method: 'GET',
         headers: {
             Authorization: `Bearer ${token}`,
@@ -49,7 +55,7 @@ async function getVersion(token) {
 }
 
 async function getChangeLog(token) {
-    const res = await fetch('https://api.github.com/repos/pot-app/pot-desktop/releases/latest', {
+    const res = await fetch('https://api.github.com/repos/zeta987/pot-desktop/releases/latest', {
         method: 'GET',
         headers: {
             Authorization: `Bearer ${token}`,
