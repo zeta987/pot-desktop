@@ -5,17 +5,22 @@ import { appConfigDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
 import { Spacer, Button } from '@nextui-org/react';
 import { AiFillCloseCircle } from 'react-icons/ai';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { BsPinFill } from 'react-icons/bs';
 
+import PausedRunGroup from './components/PausedRunGroup';
 import LanguageArea from './components/LanguageArea';
 import SourceArea from './components/SourceArea';
 import TargetArea from './components/TargetArea';
+import { buildLayout, reorderLayout, slotDraggableId } from './utils/paused_runs';
 import { osType } from '../../utils/env';
 import { useConfig } from '../../hooks';
 import { store } from '../../utils/store';
 import { info } from 'tauri-plugin-log-api';
+
+// How long a drag must hover over a collapsed run before it springs open.
+const SPRING_LOADED_DELAY = 800;
 
 let blurTimeout = null;
 let resizeTimeout = null;
@@ -81,6 +86,7 @@ export default function Translate() {
     const [collectionServiceInstanceList] = useConfig('collection_service_list', []);
     const [hideLanguage] = useConfig('hide_language', false);
     const [pausedServices, setPausedServices] = useConfig('translate_popup_paused', []);
+    const [collapsePausedRuns] = useConfig('translate_collapse_paused_runs', false);
 
     // Defensive filter: remove stale keys not in current service list
     const validPausedServices = (pausedServices ?? []).filter((key) =>
@@ -98,18 +104,84 @@ export default function Translate() {
     const [pined, setPined] = useState(false);
     const [pluginList, setPluginList] = useState(null);
     const [serviceInstanceConfigMap, setServiceInstanceConfigMap] = useState(null);
-    const reorder = (list, startIndex, endIndex) => {
-        const result = Array.from(list);
-        const [removed] = result.splice(startIndex, 1);
-        result.splice(endIndex, 0, removed);
-        return result;
+    // Runs the user opened during this window's lifetime. Deliberately not persisted:
+    // a run is derived from adjacency, so its id stops meaning the same thing once the
+    // ordering or the paused set changes. See docs/adr/0001.
+    const [expandedRunIds, setExpandedRunIds] = useState([]);
+    const springTimer = useRef(null);
+    const springRunId = useRef(null);
+
+    const layout = useMemo(() => {
+        if (translateServiceInstanceList === null || serviceInstanceConfigMap === null) {
+            return [];
+        }
+        const disabledKeys = translateServiceInstanceList.filter(
+            (key) => ((serviceInstanceConfigMap[key] ?? {})['enable'] ?? true) === false
+        );
+        return buildLayout({
+            serviceList: translateServiceInstanceList,
+            pausedKeys: validPausedServices,
+            disabledKeys,
+            collapseEnabled: collapsePausedRuns ?? false,
+            expandedRunIds,
+        });
+    }, [translateServiceInstanceList, serviceInstanceConfigMap, pausedServices, collapsePausedRuns, expandedRunIds]);
+
+    // Position of each instance in the stored list, used to keep TargetArea's own
+    // per-panel bookkeeping stable regardless of how rows are grouped.
+    const serviceIndexMap = useMemo(() => {
+        const map = {};
+        (translateServiceInstanceList ?? []).forEach((key, index) => {
+            map[key] = index;
+        });
+        return map;
+    }, [translateServiceInstanceList]);
+
+    const toggleRun = (runId) => {
+        setExpandedRunIds((ids) => (ids.includes(runId) ? ids.filter((id) => id !== runId) : [...ids, runId]));
     };
 
-    const onDragEnd = async (result) => {
-        if (!result.destination) return;
-        const items = reorder(translateServiceInstanceList, result.source.index, result.destination.index);
-        setTranslateServiceInstanceList(items);
+    const cancelSpring = () => {
+        if (springTimer.current) {
+            clearTimeout(springTimer.current);
+            springTimer.current = null;
+        }
+        springRunId.current = null;
     };
+
+    // Spring-loaded folders: parking a drag over a collapsed run opens it so the item
+    // can be dropped at an exact position inside.
+    const onDragUpdate = (update) => {
+        if (!update.destination) {
+            cancelSpring();
+            return;
+        }
+        const draggables = layout.filter((slot) => slot.draggableIndex !== null);
+        const dragged = draggables.find((slot) => slotDraggableId(slot) === update.draggableId);
+        const rest = draggables.filter((slot) => slot !== dragged);
+        const at = rest[update.destination.index];
+        const before = update.destination.index > 0 ? rest[update.destination.index - 1] : null;
+        const target = at?.kind === 'collapsedRun' ? at : before?.kind === 'collapsedRun' ? before : null;
+        const runId = target ? target.runId : null;
+
+        if (runId === springRunId.current) return;
+        cancelSpring();
+        if (runId === null) return;
+
+        springRunId.current = runId;
+        springTimer.current = setTimeout(() => {
+            setExpandedRunIds((ids) => (ids.includes(runId) ? ids : [...ids, runId]));
+            cancelSpring();
+        }, SPRING_LOADED_DELAY);
+    };
+
+    const onDragEnd = (result) => {
+        cancelSpring();
+        if (!result.destination) return;
+        setTranslateServiceInstanceList(reorderLayout(layout, result.source.index, result.destination.index));
+    };
+
+    useEffect(() => cancelSpring, []);
     // 是否自动关闭窗口
     useEffect(() => {
         if (closeOnBlur !== null && !closeOnBlur) {
@@ -303,7 +375,10 @@ export default function Translate() {
                             <LanguageArea />
                             <Spacer y={2} />
                         </div>
-                        <DragDropContext onDragEnd={onDragEnd}>
+                        <DragDropContext
+                            onDragEnd={onDragEnd}
+                            onDragUpdate={onDragUpdate}
+                        >
                             <Droppable
                                 droppableId='droppable'
                                 direction='vertical'
@@ -313,45 +388,68 @@ export default function Translate() {
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
                                     >
-                                        {translateServiceInstanceList !== null &&
-                                            serviceInstanceConfigMap !== null &&
-                                            translateServiceInstanceList.map((serviceInstanceKey, index) => {
-                                                const config = serviceInstanceConfigMap[serviceInstanceKey] ?? {};
-                                                const enable = config['enable'] ?? true;
+                                        {layout.map((slot) => {
+                                            if (slot.kind === 'hidden') return null;
 
-                                                return enable ? (
-                                                    <Draggable
-                                                        key={serviceInstanceKey}
-                                                        draggableId={serviceInstanceKey}
-                                                        index={index}
-                                                    >
-                                                        {(provided) => (
-                                                            <div
-                                                                ref={provided.innerRef}
-                                                                {...provided.draggableProps}
-                                                            >
-                                                                <TargetArea
-                                                                    {...provided.dragHandleProps}
-                                                                    index={index}
-                                                                    name={serviceInstanceKey}
-                                                                    translateServiceInstanceList={
-                                                                        translateServiceInstanceList
-                                                                    }
-                                                                    pluginList={pluginList}
-                                                                    serviceInstanceConfigMap={serviceInstanceConfigMap}
-                                                                    isPaused={validPausedServices.includes(
-                                                                        serviceInstanceKey
-                                                                    )}
-                                                                    onTogglePause={togglePauseService}
-                                                                />
-                                                                <Spacer y={2} />
-                                                            </div>
-                                                        )}
-                                                    </Draggable>
-                                                ) : (
-                                                    <></>
+                                            const renderTargetArea = (dragHandleProps) => (
+                                                <TargetArea
+                                                    {...dragHandleProps}
+                                                    index={serviceIndexMap[slot.keys[0]]}
+                                                    name={slot.keys[0]}
+                                                    translateServiceInstanceList={translateServiceInstanceList}
+                                                    pluginList={pluginList}
+                                                    serviceInstanceConfigMap={serviceInstanceConfigMap}
+                                                    isPaused={validPausedServices.includes(slot.keys[0])}
+                                                    onTogglePause={togglePauseService}
+                                                />
+                                            );
+
+                                            if (slot.kind === 'runHeader') {
+                                                return (
+                                                    <div key={`header:${slot.runId}`}>
+                                                        <PausedRunGroup
+                                                            count={slot.memberKeys.length}
+                                                            isExpanded
+                                                            onToggle={() => toggleRun(slot.runId)}
+                                                        />
+                                                        <Spacer y={2} />
+                                                    </div>
                                                 );
-                                            })}
+                                            }
+
+                                            const draggableId = slotDraggableId(slot);
+
+                                            return (
+                                                <Draggable
+                                                    key={draggableId}
+                                                    draggableId={draggableId}
+                                                    index={slot.draggableIndex}
+                                                >
+                                                    {(provided) => (
+                                                        <div
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                        >
+                                                            {slot.kind === 'collapsedRun' ? (
+                                                                <PausedRunGroup
+                                                                    {...provided.dragHandleProps}
+                                                                    count={slot.memberKeys.length}
+                                                                    isExpanded={false}
+                                                                    onToggle={() => toggleRun(slot.runId)}
+                                                                />
+                                                            ) : slot.kind === 'runMember' ? (
+                                                                <div className='pl-[16px]'>
+                                                                    {renderTargetArea(provided.dragHandleProps)}
+                                                                </div>
+                                                            ) : (
+                                                                renderTargetArea(provided.dragHandleProps)
+                                                            )}
+                                                            <Spacer y={2} />
+                                                        </div>
+                                                    )}
+                                                </Draggable>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </Droppable>

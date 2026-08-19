@@ -29,6 +29,7 @@ export default function Translate() {
     const [rememberWindowSize, setRememberWindowSize] = useConfig('translate_remember_window_size', false);
     const [hideSource, setHideSource] = useConfig('hide_source', false);
     const [hideLanguage, setHideLanguage] = useConfig('hide_language', false);
+    const [collapsePausedRuns, setCollapsePausedRuns] = useConfig('translate_collapse_paused_runs', false);
     const [hideWindow, setHideWindow] = useConfig('translate_hide_window', false);
     const [closeOnBlur, setCloseOnBlur] = useConfig('translate_close_on_blur', true);
     const [alwaysOnTop, setAlwaysOnTop] = useConfig('translate_always_on_top', false);
@@ -313,6 +314,17 @@ export default function Translate() {
                                 isSelected={hideLanguage}
                                 onValueChange={(v) => {
                                     setHideLanguage(v);
+                                }}
+                            />
+                        )}
+                    </div>
+                    <div className='config-item'>
+                        <h3 className='my-auto mx-0'>{t('config.translate.collapse_paused_runs')}</h3>
+                        {collapsePausedRuns !== null && (
+                            <Switch
+                                isSelected={collapsePausedRuns}
+                                onValueChange={(v) => {
+                                    setCollapsePausedRuns(v);
                                 }}
                             />
                         )}
