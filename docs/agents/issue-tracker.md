@@ -17,6 +17,48 @@ Every `gh` command in this file therefore carries an explicit `--repo zeta987/po
 -   **Apply / remove labels**: `gh issue edit <number> --repo zeta987/pot-desktop --add-label "..."` / `--remove-label "..."`
 -   **Close**: `gh issue close <number> --repo zeta987/pot-desktop --comment "..."`
 
+## Closing an issue from a PR
+
+**On this repo, a merged PR never closes its issue. Close it by hand.**
+
+GitHub fires a closing keyword only when the PR merges into the repository's **default
+branch**, which here is `master`. Work branches target `dev/personal-3.0.7`, so the
+keyword never fires — and GitHub does not even register the link. Verified on #3: its
+body contained `Closes #1` and `closingIssuesReferences` stayed empty right up to the
+merge. A closing keyword in a **commit message** is weaker still; GitHub reads those
+only on a push to the default branch.
+
+Write the keyword in the PR body anyway. It tells a human reader which issue the PR
+answers, and it starts working on its own the day a PR targets `master`.
+
+Finishing an issue therefore takes four steps:
+
+1.  Put `Closes #<n>` in the **PR body** (not only in a commit message), and add a note
+    that auto-close will not fire because of the base branch.
+2.  Merge the PR.
+3.  Close the issue by hand, naming where the fix landed and which branch it is not on
+    yet.
+4.  Confirm it took — the issue should report `CLOSED` / `COMPLETED`.
+
+```bash
+gh pr merge <pr> --repo zeta987/pot-desktop --merge
+gh issue close <n> --repo zeta987/pot-desktop --comment "Fixed in #<pr>, merged into dev/personal-3.0.7 as <sha>. Not on master yet."
+gh issue view <n> --repo zeta987/pot-desktop --json state,stateReason
+```
+
+The closing comment is the only record a reader gets, so make it carry the diagnosis,
+the commits that did the work, how it was verified, and anything the issue asked for
+that was deliberately left out. Do not close an issue whose fix is still sitting on an
+unmerged branch.
+
+To check whether GitHub has linked a PR to an issue at all:
+
+```bash
+gh pr view <n> --repo zeta987/pot-desktop --json closingIssuesReferences
+```
+
+An empty array means no link exists, whatever the body says.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
