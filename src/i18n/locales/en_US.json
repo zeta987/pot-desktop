@@ -125,6 +125,7 @@
                 "always_on_top": "Always on Top",
                 "hide_source": "Hide Source Area",
                 "hide_language": "Hide Language Area",
+                "collapse_paused_runs": "Collapse Adjacent Paused Services",
                 "hide_window": "Hide Translation Window",
                 "detect_engine": "Language Detection Engine",
                 "baidu": "Baidu",
@@ -460,7 +461,10 @@
             "delete_newline": "Delete Newline",
             "translate_back": "Translation back to the original",
             "pause": "Pause",
-            "resume": "Resume"
+            "resume": "Resume",
+            "paused_run": "{{total}} paused services",
+            "expand_paused_run": "Expand paused services",
+            "collapse_paused_run": "Collapse paused services"
         },
         "recognize": {
             "recognize": "Recognize",

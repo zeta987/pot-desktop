@@ -42,6 +42,9 @@ pnpm install          # Install frontend dependencies (requires pnpm 8.5.0+, Nod
 pnpm tauri dev        # Start development mode (Vite dev server on port 1420 + Tauri)
 pnpm tauri build      # Production build (creates platform-specific installers)
 pnpm build            # Build frontend only (Vite)
+pnpm test             # Run the Vitest suite once
+pnpm test:watch       # Run Vitest in watch mode
+pnpm test:coverage    # Run the suite with a V8 coverage report
 npx prettier --check . # Check code formatting
 npx prettier --write . # Auto-fix formatting
 cargo check           # Type-check Rust code (run from src-tauri/)

@@ -115,6 +115,7 @@
                 "always_on_top": "視窗始終置頂",
                 "hide_source": "隱藏原文",
                 "hide_language": "隱藏語言區域",
+                "collapse_paused_runs": "摺疊相鄰的已暫停服務",
                 "hide_window": "隱藏翻譯視窗",
                 "detect_engine": "語言偵測引擎",
                 "baidu": "百度",
@@ -457,7 +458,10 @@
             "delete_newline": "刪除換行",
             "translate_back": "翻譯回原文",
             "pause": "暫停",
-            "resume": "恢復"
+            "resume": "恢復",
+            "paused_run": "{{total}} 個已暫停的服務",
+            "expand_paused_run": "展開已暫停的服務",
+            "collapse_paused_run": "摺疊已暫停的服務"
         },
         "recognize": {
             "recognize": "辨識",

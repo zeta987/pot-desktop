@@ -125,6 +125,7 @@
                 "always_on_top": "窗口默认置顶",
                 "hide_source": "隐藏原文",
                 "hide_language": "隐藏语言栏",
+                "collapse_paused_runs": "折叠相邻的已暂停服务",
                 "hide_window": "隐藏翻译窗口",
                 "detect_engine": "语种检测引擎",
                 "baidu": "百度",
@@ -460,7 +461,10 @@
             "delete_newline": "删除换行",
             "translate_back": "翻译回原文",
             "pause": "暂停",
-            "resume": "恢复"
+            "resume": "恢复",
+            "paused_run": "{{total}} 个已暂停的服务",
+            "expand_paused_run": "展开已暂停的服务",
+            "collapse_paused_run": "折叠已暂停的服务"
         },
         "recognize": {
             "recognize": "重新识别",
