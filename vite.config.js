@@ -6,6 +6,20 @@ import { resolve } from 'path';
 export default defineConfig(async () => ({
     plugins: [react()],
 
+    // Vitest runs against the same plugin/resolve setup as the app build.
+    test: {
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: ['./src/test/setup.js'],
+        include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'html'],
+            include: ['src/**/*.{js,jsx,ts,tsx}'],
+            exclude: ['src/test/**', 'src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+        },
+    },
+
     // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
     // prevent vite from obscuring rust errors
     clearScreen: false,
