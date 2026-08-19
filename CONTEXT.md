@@ -44,5 +44,7 @@ window's ordering. The ordering is user-controlled by drag, so a Paused Run is
 defined by adjacency in that order, never by gathering Paused instances from
 across the list. A Paused Run has no membership of its own: it is recomputed
 from the ordering and the Paused flags after every change, so instances are
-never added to or removed from one directly.
+never added to or removed from one directly. Disabled instances are not in the
+window's ordering at all, so a run reaches across one rather than being broken
+by it.
 _Avoid_: paused group, paused section, cluster

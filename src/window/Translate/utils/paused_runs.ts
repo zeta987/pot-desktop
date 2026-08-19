@@ -37,23 +37,18 @@ export interface BuildLayoutArgs {
     disabledKeys: Iterable<string>;
     collapseEnabled: boolean;
     expandedRunIds: Iterable<string>;
-    minRunLength?: number;
 }
 
 /**
- * Group adjacent paused keys into runs, dropping any run shorter than `minLength`.
- * `serviceList` must already exclude disabled instances.
+ * Group adjacent paused keys into runs, dropping any run below the fixed minimum
+ * length. `serviceList` must already exclude disabled instances.
  */
-export function findPausedRuns(
-    serviceList: string[],
-    pausedKeys: ReadonlySet<string>,
-    minLength: number = MIN_PAUSED_RUN_LENGTH
-): PausedRun[] {
+export function findPausedRuns(serviceList: string[], pausedKeys: ReadonlySet<string>): PausedRun[] {
     const runs: PausedRun[] = [];
     let current: string[] = [];
 
     const flush = () => {
-        if (current.length >= minLength) {
+        if (current.length >= MIN_PAUSED_RUN_LENGTH) {
             runs.push({ runId: current[0], keys: current });
         }
         current = [];
@@ -81,14 +76,13 @@ export function buildLayout({
     disabledKeys,
     collapseEnabled,
     expandedRunIds,
-    minRunLength = MIN_PAUSED_RUN_LENGTH,
 }: BuildLayoutArgs): LayoutSlot[] {
     const paused = new Set(pausedKeys);
     const disabled = new Set(disabledKeys);
     const expanded = new Set(expandedRunIds);
 
     const visible = serviceList.filter((key) => !disabled.has(key));
-    const runs = collapseEnabled ? findPausedRuns(visible, paused, minRunLength) : [];
+    const runs = collapseEnabled ? findPausedRuns(visible, paused) : [];
 
     // Map each run to the slice of the stored list it owns: first member through last.
     const runSpans = runs.map((run) => ({
@@ -158,9 +152,8 @@ export function slotDraggableId(slot: LayoutSlot): string {
  * cannot be dragged keep their position relative to the rows around them, and a
  * collapsed run moves as a single block.
  */
-export function reorderLayout(layout: LayoutSlot[], sourceIndex: number, destinationIndex: number): string[] {
-    const draggables = layout.filter((slot) => slot.draggableIndex !== null);
-    const moved = draggables[sourceIndex];
+export function reorderLayout(layout: LayoutSlot[], sourceDraggableId: string, destinationIndex: number): string[] {
+    const moved = layout.find((slot) => slot.draggableIndex !== null && slotDraggableId(slot) === sourceDraggableId);
 
     if (!moved) {
         return layout.flatMap((slot) => slot.keys);

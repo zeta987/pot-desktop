@@ -5,11 +5,11 @@ import { appConfigDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
 import { Spacer, Button } from '@nextui-org/react';
 import { AiFillCloseCircle } from 'react-icons/ai';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { BsPinFill } from 'react-icons/bs';
 
-import PausedRunGroup from './components/PausedRunGroup';
+import PausedRun from './components/PausedRun';
 import LanguageArea from './components/LanguageArea';
 import SourceArea from './components/SourceArea';
 import TargetArea from './components/TargetArea';
@@ -18,9 +18,6 @@ import { osType } from '../../utils/env';
 import { useConfig } from '../../hooks';
 import { store } from '../../utils/store';
 import { info } from 'tauri-plugin-log-api';
-
-// How long a drag must hover over a collapsed run before it springs open.
-const SPRING_LOADED_DELAY = 800;
 
 let blurTimeout = null;
 let resizeTimeout = null;
@@ -108,8 +105,6 @@ export default function Translate() {
     // a run is derived from adjacency, so its id stops meaning the same thing once the
     // ordering or the paused set changes. See docs/adr/0001.
     const [expandedRunIds, setExpandedRunIds] = useState([]);
-    const springTimer = useRef(null);
-    const springRunId = useRef(null);
 
     const layout = useMemo(() => {
         if (translateServiceInstanceList === null || serviceInstanceConfigMap === null) {
@@ -141,47 +136,12 @@ export default function Translate() {
         setExpandedRunIds((ids) => (ids.includes(runId) ? ids.filter((id) => id !== runId) : [...ids, runId]));
     };
 
-    const cancelSpring = () => {
-        if (springTimer.current) {
-            clearTimeout(springTimer.current);
-            springTimer.current = null;
-        }
-        springRunId.current = null;
-    };
-
-    // Spring-loaded folders: parking a drag over a collapsed run opens it so the item
-    // can be dropped at an exact position inside.
-    const onDragUpdate = (update) => {
-        if (!update.destination) {
-            cancelSpring();
-            return;
-        }
-        const draggables = layout.filter((slot) => slot.draggableIndex !== null);
-        const dragged = draggables.find((slot) => slotDraggableId(slot) === update.draggableId);
-        const rest = draggables.filter((slot) => slot !== dragged);
-        const at = rest[update.destination.index];
-        const before = update.destination.index > 0 ? rest[update.destination.index - 1] : null;
-        const target = at?.kind === 'collapsedRun' ? at : before?.kind === 'collapsedRun' ? before : null;
-        const runId = target ? target.runId : null;
-
-        if (runId === springRunId.current) return;
-        cancelSpring();
-        if (runId === null) return;
-
-        springRunId.current = runId;
-        springTimer.current = setTimeout(() => {
-            setExpandedRunIds((ids) => (ids.includes(runId) ? ids : [...ids, runId]));
-            cancelSpring();
-        }, SPRING_LOADED_DELAY);
-    };
-
+    // The moved row is resolved by draggable id rather than by source index, so the
+    // drop stays correct even if the layout is rebuilt while the drag is in flight.
     const onDragEnd = (result) => {
-        cancelSpring();
         if (!result.destination) return;
-        setTranslateServiceInstanceList(reorderLayout(layout, result.source.index, result.destination.index));
+        setTranslateServiceInstanceList(reorderLayout(layout, result.draggableId, result.destination.index));
     };
-
-    useEffect(() => cancelSpring, []);
     // 是否自动关闭窗口
     useEffect(() => {
         if (closeOnBlur !== null && !closeOnBlur) {
@@ -375,10 +335,7 @@ export default function Translate() {
                             <LanguageArea />
                             <Spacer y={2} />
                         </div>
-                        <DragDropContext
-                            onDragEnd={onDragEnd}
-                            onDragUpdate={onDragUpdate}
-                        >
+                        <DragDropContext onDragEnd={onDragEnd}>
                             <Droppable
                                 droppableId='droppable'
                                 direction='vertical'
@@ -407,7 +364,7 @@ export default function Translate() {
                                             if (slot.kind === 'runHeader') {
                                                 return (
                                                     <div key={`header:${slot.runId}`}>
-                                                        <PausedRunGroup
+                                                        <PausedRun
                                                             count={slot.memberKeys.length}
                                                             isExpanded
                                                             onToggle={() => toggleRun(slot.runId)}
@@ -431,7 +388,7 @@ export default function Translate() {
                                                             {...provided.draggableProps}
                                                         >
                                                             {slot.kind === 'collapsedRun' ? (
-                                                                <PausedRunGroup
+                                                                <PausedRun
                                                                     {...provided.dragHandleProps}
                                                                     count={slot.memberKeys.length}
                                                                     isExpanded={false}

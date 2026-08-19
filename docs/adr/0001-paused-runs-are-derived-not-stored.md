@@ -14,14 +14,14 @@ one instance in the middle of a run splits it in two; dragging an Active instanc
 into a run splits it as well. Both happen automatically because there is nothing to
 keep in sync.
 
-**First-class entity (rejected).** Groups would carry their own name, membership list
+**First-class entity (rejected).** A run would carry its own name, membership list
 and ordering, stored alongside `translate_service_list`, with Paused reduced to "does
 this instance translate". This is the only model that can support naming, because a
 name needs something stable to attach to.
 
 ## Consequences
 
-Groups cannot be named, and the user cannot curate membership directly — the only way
+A Paused Run cannot be named, and the user cannot curate its membership directly — the only way
 to change what a run contains is to reorder instances or pause and resume them. That
 limitation is deliberate: the first-class model buys naming at the cost of a stored
 data structure with its own CRUD, its own migration story, and a second source of

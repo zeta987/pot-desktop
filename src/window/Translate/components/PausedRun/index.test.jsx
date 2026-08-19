@@ -3,13 +3,13 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import PausedRunGroup from './index';
+import PausedRun from './index';
 import '../../../../i18n';
 
 const renderGroup = (props) =>
     render(
         <NextUIProvider>
-            <PausedRunGroup
+            <PausedRun
                 count={5}
                 isExpanded={false}
                 onToggle={() => {}}
@@ -18,8 +18,8 @@ const renderGroup = (props) =>
         </NextUIProvider>
     );
 
-describe('PausedRunGroup', () => {
-    it('states how many paused services the run stands for', () => {
+describe('PausedRun', () => {
+    it('states how many paused instances the run stands for', () => {
         renderGroup({ count: 12 });
         expect(screen.getByText('12 paused services')).toBeInTheDocument();
     });

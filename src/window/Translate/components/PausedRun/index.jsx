@@ -10,7 +10,7 @@ import React from 'react';
  * and only the arrow button toggles it open. Expanded, the header stays as a plain
  * marker above the run's members and is no longer draggable.
  */
-export default function PausedRunGroup(props) {
+export default function PausedRun(props) {
     const { count, isExpanded, onToggle, ...drag } = props;
     const { t } = useTranslation();
 
