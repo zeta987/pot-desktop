@@ -54,6 +54,10 @@
 | 在任意翻译面板上点击左上角图标启动剪切板监听默认，复制文字即可完成翻译 | 按下截图 OCR 快捷键后框选需要识别区域即可完成识别 | 按下截图翻译快捷键后框选需要识别区域即可完成翻译 |
 | <img src="asset/eg4.gif"/>                                             | <img src="asset/eg5.gif"/>                        | <img src="asset/eg6.gif"/>                       |
 
+| Chat 追问对话 |
+| ------------- |
+| 在翻译或识别结果面板点击「Chat」按钮，即可进入多轮对话窗口，对 LLM 翻译结果进行追问、编辑、重新生成，并可自定义系统提示词 |
+
 </div>
 
 <div align="center">
@@ -71,6 +75,7 @@
 -   [x] 支持所有 PC 平台 (Windows, macOS, Linux)
 -   [x] 支持 Wayland (在 KDE、Gnome 以及 Hyprland 上测试)
 -   [x] 多语言支持
+-   [x] Chat 追问对话 (对 LLM 翻译/识别结果进行多轮追问、编辑与重新生成)
 
 <div align="center">
 

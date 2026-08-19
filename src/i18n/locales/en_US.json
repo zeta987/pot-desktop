@@ -125,6 +125,7 @@
                 "always_on_top": "Always on Top",
                 "hide_source": "Hide Source Area",
                 "hide_language": "Hide Language Area",
+                "collapse_paused_runs": "Collapse Adjacent Paused Services",
                 "hide_window": "Hide Translation Window",
                 "detect_engine": "Language Detection Engine",
                 "baidu": "Baidu",
@@ -458,7 +459,12 @@
             "copy": "Copy",
             "retry": "Try again",
             "delete_newline": "Delete Newline",
-            "translate_back": "Translation back to the original"
+            "translate_back": "Translation back to the original",
+            "pause": "Pause",
+            "resume": "Resume",
+            "paused_run": "{{total}} paused services",
+            "expand_paused_run": "Expand paused services",
+            "collapse_paused_run": "Collapse paused services"
         },
         "recognize": {
             "recognize": "Recognize",
@@ -466,7 +472,24 @@
             "copy_img": "Copy Image",
             "copy_text": "Copy",
             "delete_newline": "Delete Newline",
-            "delete_space": "Delete Space"
+            "delete_space": "Delete Space",
+            "preview_markdown": "Preview Markdown",
+            "edit_text": "Edit Text",
+            "follow_up": "Follow-up Chat"
+        },
+        "chat": {
+            "title": "Follow-up Chat",
+            "send": "Send",
+            "placeholder": "Type your follow-up question...",
+            "follow_up": "Follow-up",
+            "clear": "Clear",
+            "system_prompt": "System Prompt",
+            "edit_confirm": "Confirm",
+            "edit_cancel": "Cancel",
+            "regenerate_prompt": "Regenerate from this point?",
+            "regenerate": "Regenerate",
+            "yes": "Yes",
+            "no": "No"
         }
     }
 }

@@ -6,13 +6,17 @@ import React, { useEffect, useState } from 'react';
 import { CgSpaceBetween } from 'react-icons/cg';
 import { MdContentCopy } from 'react-icons/md';
 import { MdSmartButton } from 'react-icons/md';
+import { VscPreview } from 'react-icons/vsc';
+import { BsChatDots } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
+import { invoke } from '@tauri-apps/api/tauri';
 import { nanoid } from 'nanoid';
 
 import { getServiceName, getServiceSouceType, ServiceSourceType } from '../../../utils/service_instance';
 import { currentServiceInstanceKeyAtom, languageAtom, recognizeFlagAtom } from '../ControlArea';
 import { invoke_plugin } from '../../../utils/invoke_plugin';
 import * as builtinServices from '../../../services/recognize';
+import MarkdownRenderer from '../../../components/MarkdownRenderer';
 import { useConfig } from '../../../hooks';
 import { base64Atom } from '../ImageArea';
 import { pluginListAtom } from '..';
@@ -32,6 +36,16 @@ export default function TextArea(props) {
     const [loading, setLoading] = useState(false);
     const [text, setText] = useAtom(textAtom);
     const [error, setError] = useState('');
+    const isAiPlugin =
+        currentServiceInstanceKey &&
+        getServiceSouceType(currentServiceInstanceKey) === ServiceSourceType.PLUGIN &&
+        (serviceInstanceConfigMap[currentServiceInstanceKey] ?? {}).apiKey &&
+        (serviceInstanceConfigMap[currentServiceInstanceKey] ?? {}).requestPath;
+    const [previewMode, setPreviewMode] = useState(!!isAiPlugin);
+
+    useEffect(() => {
+        setPreviewMode(!!isAiPlugin);
+    }, [currentServiceInstanceKey]);
     const pluginList = useAtomValue(pluginListAtom);
     const { t } = useTranslation();
 
@@ -152,15 +166,20 @@ export default function TextArea(props) {
                     </div>
                 ) : (
                     <>
-                        {text && (
-                            <textarea
-                                value={text}
-                                className='bg-content1 h-full m-[12px] mb-0 resize-none focus:outline-none'
-                                onChange={(e) => {
-                                    setText(e.target.value);
-                                }}
-                            />
-                        )}
+                        {text &&
+                            (previewMode ? (
+                                <div className='h-full m-[12px] mb-0 overflow-y-auto select-text'>
+                                    <MarkdownRenderer>{text}</MarkdownRenderer>
+                                </div>
+                            ) : (
+                                <textarea
+                                    value={text}
+                                    className='bg-content1 h-full m-[12px] mb-0 resize-none focus:outline-none'
+                                    onChange={(e) => {
+                                        setText(e.target.value);
+                                    }}
+                                />
+                            ))}
                         {error && (
                             <textarea
                                 value={error}
@@ -212,6 +231,63 @@ export default function TextArea(props) {
                             <CgSpaceBetween className='text-[16px]' />
                         </Button>
                     </Tooltip>
+                    <Tooltip content={previewMode ? t('recognize.edit_text') : t('recognize.preview_markdown')}>
+                        <Button
+                            isIconOnly
+                            variant='light'
+                            size='sm'
+                            className={previewMode ? 'text-primary' : ''}
+                            onPress={() => setPreviewMode(!previewMode)}
+                        >
+                            <VscPreview className='text-[16px]' />
+                        </Button>
+                    </Tooltip>
+                    {(() => {
+                        if (!currentServiceInstanceKey) return null;
+                        const pluginConfig = serviceInstanceConfigMap[currentServiceInstanceKey] ?? {};
+                        const isPlugin = getServiceSouceType(currentServiceInstanceKey) === ServiceSourceType.PLUGIN;
+                        if (isPlugin && pluginConfig.apiKey && pluginConfig.requestPath && text) {
+                            return (
+                                <Tooltip content={t('recognize.follow_up')}>
+                                    <Button
+                                        isIconOnly
+                                        variant='light'
+                                        size='sm'
+                                        onPress={() => {
+                                            invoke('open_chat_window', {
+                                                context: JSON.stringify({
+                                                    source: 'recognize',
+                                                    sourceText: text,
+                                                    resultText: text,
+                                                    apiConfig: {
+                                                        service: 'openai',
+                                                        requestPath: pluginConfig.requestPath,
+                                                        model: pluginConfig.model || 'gpt-4o',
+                                                        apiKey: pluginConfig.apiKey,
+                                                        stream: true,
+                                                    },
+                                                    initialMessages: [
+                                                        {
+                                                            role: 'user',
+                                                            content: `The following text was recognized from an image via OCR:\n\n${text}`,
+                                                        },
+                                                        {
+                                                            role: 'assistant',
+                                                            content:
+                                                                'I have received the OCR text. How can I help you with it?',
+                                                        },
+                                                    ],
+                                                }),
+                                            });
+                                        }}
+                                    >
+                                        <BsChatDots className='text-[16px]' />
+                                    </Button>
+                                </Tooltip>
+                            );
+                        }
+                        return null;
+                    })()}
                 </ButtonGroup>
             </CardFooter>
         </Card>

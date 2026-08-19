@@ -125,6 +125,7 @@
                 "always_on_top": "窗口默认置顶",
                 "hide_source": "隐藏原文",
                 "hide_language": "隐藏语言栏",
+                "collapse_paused_runs": "折叠相邻的已暂停服务",
                 "hide_window": "隐藏翻译窗口",
                 "detect_engine": "语种检测引擎",
                 "baidu": "百度",
@@ -458,7 +459,12 @@
             "copy": "复制",
             "retry": "重试",
             "delete_newline": "删除换行",
-            "translate_back": "翻译回原文"
+            "translate_back": "翻译回原文",
+            "pause": "暂停",
+            "resume": "恢复",
+            "paused_run": "{{total}} 个已暂停的服务",
+            "expand_paused_run": "展开已暂停的服务",
+            "collapse_paused_run": "折叠已暂停的服务"
         },
         "recognize": {
             "recognize": "重新识别",
@@ -466,7 +472,24 @@
             "copy_img": "复制图片",
             "copy_text": "复制",
             "delete_newline": "删除换行",
-            "delete_space": "删除空格"
+            "delete_space": "删除空格",
+            "preview_markdown": "预览 Markdown",
+            "edit_text": "编辑文字",
+            "follow_up": "追问对话"
+        },
+        "chat": {
+            "title": "追问对话",
+            "send": "发送",
+            "placeholder": "输入追问内容…",
+            "follow_up": "追问",
+            "clear": "清空",
+            "system_prompt": "系统提示词",
+            "edit_confirm": "确认",
+            "edit_cancel": "取消",
+            "regenerate_prompt": "从此处重新生成？",
+            "regenerate": "重新生成",
+            "yes": "是",
+            "no": "否"
         }
     }
 }

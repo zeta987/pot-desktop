@@ -1,6 +1,7 @@
 use crate::config::get;
 use crate::config::StoreWrapper;
 use crate::error::Error;
+use crate::ChatContextMap;
 use crate::StringWrapper;
 use crate::APP;
 use log::{error, info};
@@ -222,4 +223,27 @@ pub fn open_devtools(window: tauri::Window) {
     } else {
         window.close_devtools();
     }
+}
+
+#[tauri::command(async)]
+pub fn open_chat_window(context: String) -> Result<String, String> {
+    let label = format!("chat_{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis());
+
+    let app_handle = APP.get().unwrap();
+    let state = app_handle.state::<ChatContextMap>();
+    state.0.lock().unwrap().insert(label.clone(), context);
+
+    crate::window::chat_window(&label);
+    Ok(label)
+}
+
+#[tauri::command]
+pub fn get_chat_context(label: String) -> String {
+    let app_handle = APP.get().unwrap();
+    let state = app_handle.state::<ChatContextMap>();
+    let result = state.0.lock().unwrap().remove(&label).unwrap_or_default();
+    result
 }
