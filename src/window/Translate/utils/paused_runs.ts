@@ -68,7 +68,7 @@ export function findPausedRuns(serviceList: string[], pausedKeys: ReadonlySet<st
 
 /**
  * Turn the stored service list into the rows the translate window renders, assigning
- * consecutive drag indexes to exactly the rows react-beautiful-dnd may move.
+ * consecutive drag indexes to exactly the rows @hello-pangea/dnd may move.
  */
 export function buildLayout({
     serviceList,
@@ -140,7 +140,7 @@ export function buildLayout({
 }
 
 /**
- * The id a slot is registered under with react-beautiful-dnd. A collapsed run is
+ * The id a slot is registered under with @hello-pangea/dnd. A collapsed run is
  * prefixed so it can never collide with the instance key of one of its members.
  */
 export function slotDraggableId(slot: LayoutSlot): string {
