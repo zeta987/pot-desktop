@@ -105,7 +105,7 @@
             "active": true,
             "dialog": false,
             "endpoints": ["https://github.com/zeta987/pot-desktop/releases/download/updater/update.json"],
-            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBRTQxQTNDQjM5QzQzM0EKUldRNlE1eXpQQnJrV21mM1Bram5LRlF6UDA3K0Jab2FYL2lZSWhXTE5McWs2NUdJS0dtYkd5VGMK"
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEzMzY3MkZGRDNEOENDNApSV1RFakQzOUwyY3pBVGI0Vk9jM2Y3cFl5OEJvbmoxQ01yT29MdE1VUmp5VXg5NE9pdmN5T2VFNQo="
         }
     }
 }
