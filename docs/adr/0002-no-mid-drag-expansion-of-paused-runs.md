@@ -35,3 +35,12 @@ the moved row by its draggable id rather than by the source index the drag repor
 That is not needed for correctness today — nothing rebuilds the layout mid-drag any
 more — but it means a future rebuild degrades into a no-op rather than moving the
 wrong row.
+
+## Update — 2026-08-20
+
+The drag library named above is now `@hello-pangea/dnd`; `react-beautiful-dnd` was
+archived and we moved onto the maintained fork (#2). That migration was for maintenance
+alone and changes nothing here: as this ADR already predicted, the fork carries the same
+dimension-marshal check, so mid-drag expansion is still out. The decision stands, and
+the routes to reopening it are unchanged — `mode="virtual"` with the clone API, or a
+different drag library.
