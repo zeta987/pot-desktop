@@ -42,6 +42,7 @@ import * as builtinServices from '../../../../services/translate';
 import * as builtinTtsServices from '../../../../services/tts';
 import MarkdownRenderer from '../../../../components/MarkdownRenderer';
 import { isLlmService } from '../../../../utils/llm_services';
+import { createTargetAreaReveal } from '../../utils/target_area_reveal';
 
 import { info, error as logError } from 'tauri-plugin-log-api';
 import {
@@ -162,22 +163,11 @@ export default function TargetArea(props) {
             );
     };
 
-    function invokeOnce(fn) {
-        let isInvoke = false;
-
-        return (...args) => {
-            if (isInvoke) {
-                return;
-            } else {
-                fn(...args);
-                isInvoke = true;
-            }
-        };
-    }
-
     const translate = async () => {
         let id = nanoid();
         translateID[index] = id;
+
+        const reveal = createTargetAreaReveal(setHide);
 
         const translateServiceName = getServiceName(currentTranslateServiceInstanceKey);
 
@@ -189,10 +179,9 @@ export default function TargetArea(props) {
                     newTargetLanguage = translateSecondLanguage;
                 }
                 setIsLoading(true);
-                setHide(true);
+                reveal.collapse();
                 const instanceConfig = serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
                 instanceConfig['enable'] = 'true';
-                const setHideOnce = invokeOnce(setHide);
                 let [func, utils] = await invoke_plugin('translate', translateServiceName);
                 func(sourceText.trim(), pluginInfo.language[sourceLanguage], pluginInfo.language[newTargetLanguage], {
                     config: instanceConfig,
@@ -200,7 +189,7 @@ export default function TargetArea(props) {
                     setResult: (v) => {
                         if (translateID[index] !== id) return;
                         setResult(v);
-                        setHideOnce(false);
+                        reveal.open();
                     },
                     utils,
                 }).then(
@@ -209,9 +198,7 @@ export default function TargetArea(props) {
                         if (translateID[index] !== id) return;
                         setResult(typeof v === 'string' ? v.trim() : v);
                         setIsLoading(false);
-                        if (v !== '') {
-                            setHideOnce(false);
-                        }
+                        reveal.settle(v);
                         if (!historyDisable) {
                             addToHistory(
                                 sourceText.trim(),
@@ -250,10 +237,12 @@ export default function TargetArea(props) {
                         if (translateID[index] !== id) return;
                         setError(e.toString());
                         setIsLoading(false);
+                        reveal.open();
                     }
                 );
             } else {
                 setError('Language not supported');
+                reveal.open();
             }
         } else {
             const LanguageEnum = builtinServices[translateServiceName].Language;
@@ -263,9 +252,8 @@ export default function TargetArea(props) {
                     newTargetLanguage = translateSecondLanguage;
                 }
                 setIsLoading(true);
-                setHide(true);
+                reveal.collapse();
                 const instanceConfig = serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
-                const setHideOnce = invokeOnce(setHide);
                 builtinServices[translateServiceName]
                     .translate(sourceText.trim(), LanguageEnum[sourceLanguage], LanguageEnum[newTargetLanguage], {
                         config: instanceConfig,
@@ -273,7 +261,7 @@ export default function TargetArea(props) {
                         setResult: (v) => {
                             if (translateID[index] !== id) return;
                             setResult(v);
-                            setHideOnce(false);
+                            reveal.open();
                         },
                     })
                     .then(
@@ -282,9 +270,7 @@ export default function TargetArea(props) {
                             if (translateID[index] !== id) return;
                             setResult(typeof v === 'string' ? v.trim() : v);
                             setIsLoading(false);
-                            if (v !== '') {
-                                setHideOnce(false);
-                            }
+                            reveal.settle(v);
                             if (!historyDisable) {
                                 addToHistory(
                                     sourceText.trim(),
@@ -323,10 +309,12 @@ export default function TargetArea(props) {
                             if (translateID[index] !== id) return;
                             setError(e.toString());
                             setIsLoading(false);
+                            reveal.open();
                         }
                     );
             } else {
                 setError('Language not supported');
+                reveal.open();
             }
         }
     };
@@ -708,6 +696,7 @@ export default function TargetArea(props) {
                                     isDisabled={typeof result !== 'string' || result === ''}
                                     onPress={async () => {
                                         setError('');
+                                        const reveal = createTargetAreaReveal(setHide);
                                         let newTargetLanguage = sourceLanguage;
                                         if (sourceLanguage === 'auto') {
                                             newTargetLanguage = detectLanguage;
@@ -726,11 +715,10 @@ export default function TargetArea(props) {
                                                 newTargetLanguage in pluginInfo.language
                                             ) {
                                                 setIsLoading(true);
-                                                setHide(true);
+                                                reveal.collapse();
                                                 const instanceConfig =
                                                     serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
                                                 instanceConfig['enable'] = 'true';
-                                                const setHideOnce = invokeOnce(setHide);
                                                 let [func, utils] = await invoke_plugin(
                                                     'translate',
                                                     getServiceName(currentTranslateServiceInstanceKey)
@@ -744,7 +732,7 @@ export default function TargetArea(props) {
                                                         detect: detectLanguage,
                                                         setResult: (v) => {
                                                             setResult(v);
-                                                            setHideOnce(false);
+                                                            reveal.open();
                                                         },
                                                         utils,
                                                     }
@@ -756,17 +744,17 @@ export default function TargetArea(props) {
                                                             setResult(v.trim());
                                                         }
                                                         setIsLoading(false);
-                                                        if (v !== '') {
-                                                            setHideOnce(false);
-                                                        }
+                                                        reveal.settle(v);
                                                     },
                                                     (e) => {
                                                         setError(e.toString());
                                                         setIsLoading(false);
+                                                        reveal.open();
                                                     }
                                                 );
                                             } else {
                                                 setError('Language not supported');
+                                                reveal.open();
                                             }
                                         } else {
                                             const LanguageEnum =
@@ -777,10 +765,9 @@ export default function TargetArea(props) {
                                                 newTargetLanguage in LanguageEnum
                                             ) {
                                                 setIsLoading(true);
-                                                setHide(true);
+                                                reveal.collapse();
                                                 const instanceConfig =
                                                     serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
-                                                const setHideOnce = invokeOnce(setHide);
                                                 builtinServices[getServiceName(currentTranslateServiceInstanceKey)]
                                                     .translate(
                                                         result.trim(),
@@ -791,7 +778,7 @@ export default function TargetArea(props) {
                                                             detect: newSourceLanguage,
                                                             setResult: (v) => {
                                                                 setResult(v);
-                                                                setHideOnce(false);
+                                                                reveal.open();
                                                             },
                                                         }
                                                     )
@@ -803,17 +790,17 @@ export default function TargetArea(props) {
                                                                 setResult(v.trim());
                                                             }
                                                             setIsLoading(false);
-                                                            if (v !== '') {
-                                                                setHideOnce(false);
-                                                            }
+                                                            reveal.settle(v);
                                                         },
                                                         (e) => {
                                                             setError(e.toString());
                                                             setIsLoading(false);
+                                                            reveal.open();
                                                         }
                                                     );
                                             } else {
                                                 setError('Language not supported');
+                                                reveal.open();
                                             }
                                         }
                                     }}
