@@ -17,6 +17,20 @@ This working copy is the personal fork **`zeta987/pot-desktop`** (`origin`). The
 
 If a change genuinely looks worth contributing upstream, describe the proposal to the user and wait for an explicit go-ahead before touching anything on `pot-app/pot-desktop`.
 
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on the fork `zeta987/pot-desktop`, via the `gh` CLI — every command must pass an explicit `--repo zeta987/pot-desktop`, because `gh` defaults to the upstream parent on a fork. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — one `CONTEXT.md` and one `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
 ## Project Overview
 
 Pot (pot-desktop) is a cross-platform text translation and OCR desktop application built with **Tauri v1** (Rust backend + React frontend). It supports 20+ translation APIs, multiple OCR engines, TTS, and a user-installable plugin system (`.potext` files). Licensed under GPLv3.
