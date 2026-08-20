@@ -45,10 +45,10 @@ async function resolveUpdater() {
             'windows-x86_64': { signature: windows_x86_64_sig, url: windows_x86_64 },
             'windows-i686': { signature: windows_i686_sig, url: windows_i686 },
             'windows-aarch64': { signature: windows_aarch64_sig, url: windows_aarch64 },
+            // Only amd64 ships an AppImage, and the Tauri updater has nothing else to
+            // install on Linux. A platform absent from this map means "no update
+            // available", which is what the other three architectures should hear.
             'linux-x86_64': { signature: linux_x86_64_sig, url: linux_x86_64 },
-            'linux-i686': { signature: darwin_aarch64_sig, url: darwin_aarch64 },
-            'linux-aarch64': { signature: darwin_aarch64_sig, url: darwin_aarch64 },
-            'linux-armv7': { signature: darwin_aarch64_sig, url: darwin_aarch64 },
         },
     };
     fs.writeFile('./update.json', JSON.stringify(updateData), (e) => {
