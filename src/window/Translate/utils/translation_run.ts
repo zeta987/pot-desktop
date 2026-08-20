@@ -96,6 +96,9 @@ export async function runTranslation(
 
     if (!request.isLanguagePairSupported) {
         area.setError(LANGUAGE_NOT_SUPPORTED);
+        // A run this one superseded may have left the spinner on, and its own
+        // supersession guard keeps it from ever clearing it — settle loading here.
+        area.setIsLoading(false);
         reveal.open();
         return { status: 'unsupported' };
     }

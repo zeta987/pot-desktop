@@ -47,8 +47,35 @@ describe('runTranslation', () => {
         expect(area.setError).toHaveBeenCalledWith(LANGUAGE_NOT_SUPPORTED);
         expect(area.reveal.open).toHaveBeenCalled();
         expect(load).not.toHaveBeenCalled();
-        expect(area.setIsLoading).not.toHaveBeenCalled();
+        expect(area.setIsLoading).not.toHaveBeenCalledWith(true);
+        expect(area.setIsLoading).toHaveBeenCalledWith(false);
         expect(area.reveal.collapse).not.toHaveBeenCalled();
+    });
+
+    it('settles the spinner a superseded run must leave behind when the next run turns the pair down', async () => {
+        const area = targetArea();
+        let superseded = false;
+        let finish!: (value: unknown) => void;
+        const inFlight = new Promise((resolve) => {
+            finish = resolve;
+        });
+
+        const first = runTranslation(
+            request({
+                isSuperseded: () => superseded,
+                load: async () => (() => inFlight) as TranslateCall,
+            }),
+            area
+        );
+
+        superseded = true;
+        const second = await runTranslation(request({ isLanguagePairSupported: false }), area);
+        finish('hola');
+
+        expect(second).toEqual({ status: 'unsupported' });
+        expect(await first).toEqual({ status: 'superseded' });
+        expect(area.setIsLoading).toHaveBeenCalledTimes(2);
+        expect(area.setIsLoading).toHaveBeenLastCalledWith(false);
     });
 
     it('collapses the Target Area and marks it loading on the way out', async () => {
