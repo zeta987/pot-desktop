@@ -1,8 +1,11 @@
 name: Package
 on:
     push:
-        branches: [master]
-        tags-ignore: [updater]
+        # Packaging runs only for a version tag. Pushing master used to start the whole
+        # matrix while every release step sat behind `startsWith(github.ref, 'refs/tags')`,
+        # so it built for half an hour and uploaded nothing. The pattern also excludes the
+        # `updater` tag that release-update writes.
+        tags: ['[0-9]+.[0-9]+.[0-9]+']
 permissions: write-all
 
 jobs:
