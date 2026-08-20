@@ -439,8 +439,6 @@ pub fn chat_window(label: &str) {
     #[cfg(not(target_os = "linux"))]
     set_shadow(&window, true).unwrap_or_default();
 
-    window
-        .set_size(tauri::LogicalSize::new(500, 600))
-        .unwrap();
+    window.set_size(tauri::LogicalSize::new(500, 600)).unwrap();
     window.center().unwrap();
 }

@@ -227,10 +227,13 @@ pub fn open_devtools(window: tauri::Window) {
 
 #[tauri::command(async)]
 pub fn open_chat_window(context: String) -> Result<String, String> {
-    let label = format!("chat_{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis());
+    let label = format!(
+        "chat_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+    );
 
     let app_handle = APP.get().unwrap();
     let state = app_handle.state::<ChatContextMap>();
