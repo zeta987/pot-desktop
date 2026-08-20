@@ -316,16 +316,16 @@ jobs:
                 include:
                     - os: ubuntu-latest
                       target: x86_64-unknown-linux-gnu
-                      toolchain: stable-x86_64-unknown-linux-gnu
+                      toolchain: 1.87.0
                     - os: ubuntu-latest
                       target: i686-unknown-linux-gnu
-                      toolchain: stable-i686-unknown-linux-gnu
+                      toolchain: 1.87.0
                     - os: ubuntu-latest
                       target: aarch64-unknown-linux-gnu
-                      toolchain: stable-aarch64-unknown-linux-gnu
+                      toolchain: 1.87.0
                     - os: ubuntu-latest
                       target: armv7-unknown-linux-gnueabihf
-                      toolchain: stable-armv7-unknown-linux-gnueabihf
+                      toolchain: 1.87.0
         runs-on: ${{ matrix.platform }}
         steps:
             - uses: actions/download-artifact@v4
@@ -381,7 +381,7 @@ jobs:
                   files: src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
 
     release-update:
-        needs: [build-for-macos, build-for-windows, build-for-windows-fix-runtime]
+        needs: [build-for-macos, build-for-windows, build-for-linux, build-for-windows-fix-runtime]
         runs-on: ubuntu-latest
         timeout-minutes: 20
         if: startsWith(github.ref, 'refs/tags')

@@ -6,8 +6,11 @@ export PATH=$(pwd)/node-v19.8.1-linux-x64/bin:$PATH
 # Pinned: the container ships Node 19, and pnpm 11 refuses anything below 22.13.
 npm install pnpm@10 -g
 
+# Pinned: rustc 1.9x rejects the ambiguous SettingsExt glob in wry 0.24.11, which
+# Tauri v1 depends on. `rust:bullseye` otherwise tracks whatever stable is newest.
+rustup toolchain install "$INPUT_TOOLCHAIN" --profile minimal
+rustup default "$INPUT_TOOLCHAIN"
 rustup target add "$INPUT_TARGET"
-rustup toolchain install --force-non-host "$INPUT_TOOLCHAIN"
 
 if [ "$INPUT_TARGET" = "x86_64-unknown-linux-gnu" ]; then
     apt-get update
