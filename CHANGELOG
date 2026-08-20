@@ -1,142 +1,30 @@
-## 3.0.8 (2026-08-20)
+## 3.0.9 (2026-08-20)
 
-The first release cut from this fork. Everything upstream shipped in 3.0.7 is here,
-plus the changes below. Upstream `pot-app/pot-desktop` is no longer updating, so this
-fork's `master` is now its own release line.
+A small bug-fix release on top of 3.0.8. For everything this fork adds over upstream
+3.0.7, see the [3.0.8 release notes](https://github.com/zeta987/pot-desktop/releases/tag/3.0.8).
 
-本次是這個 fork 自行發布的第一版。上游 3.0.7 的內容全部保留，並加上以下變更。上游
-`pot-app/pot-desktop` 已停止更新，因此這個 fork 的 `master` 從此走自己的發布線。
-
-## Highlights
-
-- **Follow-up chat on any LLM result** — carry a translation or an OCR result straight
-  into a conversation, edit what you sent, regenerate an answer, and set a system prompt.
-
-  **對任何 LLM 結果追問** — 把翻譯或文字辨識的結果直接帶進對話，可以修改送出的內容、
-  重新生成回答，也能設定 system prompt。
-
-- **Pause services without opening settings** — pause a service instance from the
-  translate window itself, and let adjacent paused ones fold into a single row.
-
-  **不必進設定就能暫停服務** — 直接在翻譯視窗暫停某個服務實例，相鄰的暫停項目還會摺疊
-  成一列。
-
-- **Failed translations say why** — a service that errors now opens its panel and shows
-  the message instead of looking like it was never asked to translate.
-
-  **翻譯失敗會說原因** — 服務出錯時面板會展開並顯示訊息，而不是看起來像從來沒被要求翻譯。
-
-## New Features
-
-- **Chat follow-up window** — a new window reachable from a translation panel and from
-  the OCR result area, backed by a new `open_chat_window` command. Messages can be
-  edited and resent, answers regenerated, and a system prompt applied per conversation.
-  Localised for English, Simplified Chinese and Traditional Chinese. (`4ad3139`)
-
-  **追問對話視窗** — 可從翻譯面板與文字辨識結果進入的新視窗，底層是新的
-  `open_chat_window` 指令。訊息可以修改後重送、回答可以重新生成，也能為每段對話套用
-  system prompt。已在地化為英文、簡體中文與繁體中文。
-
-- **Per-service pause toggle** — an enabled service instance can be paused from the
-  translate window, which skips it when a translation runs while keeping it visible and
-  resumable in place. (`256bbf9`)
-
-  **個別服務暫停開關** — 已啟用的服務實例可以在翻譯視窗直接暫停，翻譯執行時會跳過它，
-  但它仍然留在視窗裡隨時可以恢復。
-
-- **Collapse adjacent paused services** — a run of two or more consecutive paused
-  instances folds into a single row showing how many it stands for, and expands on
-  demand. Off by default; enable it under Translate settings. (`130f23d`)
-
-  **摺疊相鄰的暫停服務** — 連續兩個以上的暫停實例會摺疊成一列並標示數量，需要時再展開。
-  預設關閉，可在翻譯設定中開啟。
+本次是在 3.0.8 之上的小型錯誤修正版。這個 fork 相對於上游 3.0.7 的完整變更，請見
+[3.0.8 的發行說明](https://github.com/zeta987/pot-desktop/releases/tag/3.0.8)。
 
 ## Bug Fixes
 
-- **Translation errors are no longer invisible** — a failed run left the panel collapsed,
-  so the error text rendered inside a wrapper laid out at zero height and never reached
-  the screen. Every failure path now opens the panel: both the plugin and built-in
-  service routes, in the automatic run and in translate-back, and the unsupported
-  language-pair branch of each.
-  (`d125691`, [#1](https://github.com/zeta987/pot-desktop/issues/1))
+- **The spinner no longer runs forever beside "Language not supported"** — switching to
+  a language pair the service does not cover while a translation was still in flight
+  stranded the panel's spinner: the superseded run is barred from touching the panel,
+  and the unsupported branch never cleared the loading state. Turning a pair down now
+  settles the spinner too, with a regression test covering the exact sequence. (`d9d0199`)
 
-  **翻譯錯誤不再隱形** — 過去翻譯失敗時面板會維持收合，錯誤文字被排版在高度為零的容器
-  裡，永遠顯示不出來。現在每一條失敗路徑都會展開面板，涵蓋外掛與內建服務兩種路徑、
-  自動翻譯與回譯兩個入口，以及各自「不支援該語言對」的例外分支。
+  **轉圈圈不再永遠掛在「Language not supported」旁邊** — 翻譯還在進行時切換到服務不支援
+  的語言對，會讓面板的載入動畫變成孤兒：被作廢的舊翻譯依設計不准再碰面板，而「不支援
+  該語言對」的分支又從來不清除載入狀態。現在拒絕語言對時也會一併熄掉載入動畫，並新增了
+  重現這條路徑的回歸測試。
 
-- **Plugin load failures surface too** — loading a plugin reads and evaluates its
-  `main.js`, so a missing or malformed plugin rejects. Nothing caught that rejection,
-  which left the panel collapsed and spinning with nothing to read. (`88bf487`)
+## Maintenance
 
-  **外掛載入失敗也會顯示** — 載入外掛會讀取並執行它的 `main.js`，所以檔案缺失或語法損毀
-  時 Promise 會被 reject。過去沒有任何地方捕捉這個 rejection，面板便一直收合著轉圈圈且
-  毫無訊息。
+- **`cargo fmt` over the chat window code** — formatting only, no behaviour change.
+  (`c5827d7`)
 
-- **Stale translate-back replies no longer seize the panel** — translate-back ran an
-  asynchronous translation without any staleness check, so a slow reply overwrote newer
-  output. Both entry points now take ownership of the panel through a shared run owner,
-  and either one supersedes the other. (`391b0a5`)
-
-  **過期的回譯結果不再搶走面板** — 回譯執行非同步翻譯卻沒有任何過期檢查，慢回來的結果
-  會覆蓋較新的輸出。現在兩個入口都透過共用的 run owner 取得面板的所有權，任一方都能
-  作廢對方。
-
-## Improvements
-
-- **Every translation runs through one helper** — the four call sites that started a run
-  (plugin and built-in, in the automatic run and in translate-back) each spelled the
-  whole course out again, which is why a one-line fix had to land in four copies.
-  Behaviour is unchanged. (`6127615`)
-
-  **所有翻譯統一由單一 helper 處理** — 原本四個啟動翻譯的呼叫點（外掛與內建，各自出現
-  在自動翻譯與回譯）都把整條流程重寫一遍，所以一行修正得改四個地方。行為完全不變。
-
-- **Replaced the archived drag library** — `react-beautiful-dnd` was archived by
-  Atlassian; `@hello-pangea/dnd` is a maintained fork of the same code with the same API.
-  (`bb2ad15`, [#2](https://github.com/zeta987/pot-desktop/issues/2))
-
-  **替換已封存的拖曳函式庫** — `react-beautiful-dnd` 已被 Atlassian 封存，
-  `@hello-pangea/dnd` 是維持相同 API、由社群持續維護的 fork 版本。
-
-- **A test harness, and 63 tests** — Vitest with Testing Library and jsdom, plus V8
-  coverage. The layout maths for paused runs, the panel reveal handle, the translation
-  run helper and the run-ownership claim are all covered. (`d914b88`)
-
-  **測試框架與 63 個測試** — Vitest 搭配 Testing Library 與 jsdom，並附 V8 覆蓋率報告。
-  暫停群組的版面計算、面板開合處理、翻譯共用 helper，以及執行所有權的取得機制
-  （run-ownership claim）都有覆蓋。
-
-- **Project documentation for agents** — a `CONTEXT.md` glossary, architecture decision
-  records, shared conventions in `AGENTS.md`, and issue-tracker and triage-label
-  references. (`089b7bd`, `afe9a95`, `65229c6`, `f055638`, `6c76023`)
-
-  **給 AI 代理閱讀的專案文件** — `CONTEXT.md` 詞彙表、架構決策紀錄、`AGENTS.md` 共用慣例，
-  以及 issue 追蹤與分流標籤的參考文件。
-
-## Inherited from upstream
-
-Changes that landed in `pot-app/pot-desktop` after 3.0.7 and are included here.
-
-以下是 3.0.7 之後進入上游 `pot-app/pot-desktop`、本版一併收錄的變更。
-
-- Update ChatGLM models
-  ([#1180](https://github.com/pot-app/pot-desktop/pull/1180)) by @wangrongding
-
-  **更新 ChatGLM 模型清單**，由 @wangrongding 貢獻。
-
-- Remove the `cmd.exe` wrapper in `run_binary` so plugin paths containing spaces work
-  ([#1280](https://github.com/pot-app/pot-desktop/pull/1280)) by @idlefridaynight
-
-  **移除 `run_binary` 中的 `cmd.exe` 包裝層**，解決外掛路徑含有空白字元時無法執行的問題，
-  由 @idlefridaynight 貢獻。
-
-- 21 Weblate translation updates covering Arabic, English, French, Hebrew, Italian,
-  Korean, Norwegian Bokmål, Norwegian Nynorsk, Portuguese, Brazilian Portuguese, Russian,
-  Simplified Chinese, Traditional Chinese, Spanish, Turkish and Ukrainian.
-
-  **21 次 Weblate 翻譯更新**，涵蓋阿拉伯文、英文、法文、希伯來文、義大利文、韓文、
-  書面挪威語、新挪威語、葡萄牙文、巴西葡萄牙文、俄文、簡體中文、繁體中文、西班牙文、
-  土耳其文與烏克蘭文。
+  **對追問視窗的 Rust 程式碼執行 `cargo fmt`** — 純排版調整，行為完全不變。
 
 ## Notes
 
@@ -145,11 +33,3 @@ Changes that landed in `pot-app/pot-desktop` after 3.0.7 and are included here.
 
   本版是 `pot-app/pot-desktop` 的個人 fork，並非官方發布。版本號碼沿用上游序列只是為了
   辨識方便。
-
-- Known limitation: a collapsed run of paused services does not open mid-drag, so an
-  instance can be dropped before or after such a run but not into the middle of one. The
-  reasoning is recorded in `docs/adr/0002-no-mid-drag-expansion-of-paused-runs.md`.
-
-  已知限制：摺疊起來的暫停服務群組不會在拖曳過程中展開，所以只能把實例放在該群組之前或
-  之後，無法放進中間。原因記錄在
-  `docs/adr/0002-no-mid-drag-expansion-of-paused-runs.md`。
