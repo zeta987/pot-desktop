@@ -18,6 +18,7 @@ import { useConfig } from '../../../hooks/useConfig';
 import * as builtinServices from '../../../services/recognize';
 import { invoke_plugin } from '../../../utils/invoke_plugin';
 import { getServiceName, getServiceSouceType, ServiceSourceType } from '../../../utils/service_instance';
+import { buildRecognitionChatContext } from '../../Chat/chatContext';
 import { imageAtom } from '../ImageArea';
 import { LANGUAGE_NOT_SUPPORTED, runRecognition } from '../utils/recognition_run';
 import { getRecognitionServiceMetadata } from '../utils/recognition_service';
@@ -55,6 +56,7 @@ export default function TextArea({
     const { displayName } = getRecognitionServiceMetadata(serviceInstanceKey, serviceInstanceConfigMap, pluginList, t);
     const resultLabel = t('recognize.result_label', { name: displayName });
     const actionsDisabled = loading || !!error || !text;
+    const followUpDisabled = loading || (!image.base64 && !text);
 
     useEffect(() => {
         setPreviewMode(!!isAiPlugin);
@@ -170,12 +172,12 @@ export default function TextArea({
         <Card
             aria-busy={loading}
             aria-label={resultLabel}
-            className={`bg-content1 ${fillHeight ? 'h-full' : 'min-h-[180px] max-h-[300px] flex-shrink-0'}`}
+            className={`bg-content1 ${fillHeight ? 'h-full' : 'min-h-[320px] flex-shrink-0'}`}
             radius='10'
             role='region'
             shadow='none'
         >
-            <CardHeader className='flex justify-between gap-2 px-[12px] py-2'>
+            <CardHeader className='flex shrink-0 justify-between gap-2 px-[12px] py-2'>
                 <span className='truncate text-sm font-medium'>{displayName}</span>
                 {autoCopy && isPrimary && (
                     <Tooltip content={t('recognize.auto_copy_hint')}>
@@ -189,7 +191,7 @@ export default function TextArea({
                     </Tooltip>
                 )}
             </CardHeader>
-            <CardBody className='bg-content1 min-h-0 p-0'>
+            <CardBody className='bg-content1 min-h-0 flex-1 p-0'>
                 {loading ? (
                     <div className='m-[12px] space-y-3'>
                         <Skeleton className='w-3/5 rounded-lg'>
@@ -205,7 +207,7 @@ export default function TextArea({
                 ) : error ? (
                     <textarea
                         aria-label={resultLabel}
-                        className='bg-content1 h-full m-[12px] mb-0 resize-none focus:outline-none text-red-500'
+                        className='bg-content1 h-full m-[12px] mb-0 resize-none overflow-y-auto focus:outline-none text-red-500'
                         readOnly
                         value={error}
                     />
@@ -220,14 +222,14 @@ export default function TextArea({
                 ) : (
                     <textarea
                         aria-label={resultLabel}
-                        className='bg-content1 h-full m-[12px] mb-0 resize-none focus:outline-none placeholder:text-default-500'
+                        className='bg-content1 h-full m-[12px] mb-0 resize-none overflow-y-auto focus:outline-none placeholder:text-default-500'
                         onChange={(event) => setText(event.target.value)}
                         placeholder={t('recognize.no_text')}
                         value={text}
                     />
                 )}
             </CardBody>
-            <CardFooter className='bg-content1 flex justify-start px-[12px]'>
+            <CardFooter className='bg-content1 flex shrink-0 justify-start px-[12px]'>
                 <ButtonGroup>
                     <Tooltip content={t('translate.retry')}>
                         <Button
@@ -313,33 +315,23 @@ export default function TextArea({
                         <Tooltip content={t('recognize.follow_up')}>
                             <Button
                                 aria-label={t('recognize.follow_up')}
-                                isDisabled={actionsDisabled}
+                                isDisabled={followUpDisabled}
                                 isIconOnly
                                 onPress={() => {
                                     invoke('open_chat_window', {
-                                        context: JSON.stringify({
-                                            source: 'recognize',
-                                            sourceText: text,
-                                            resultText: text,
-                                            apiConfig: {
-                                                service: 'openai',
-                                                requestPath: serviceInstanceConfig.requestPath,
-                                                model: serviceInstanceConfig.model || 'gpt-4o',
-                                                apiKey: serviceInstanceConfig.apiKey,
-                                                stream: true,
-                                            },
-                                            initialMessages: [
-                                                {
-                                                    role: 'user',
-                                                    content: `The following text was recognized from an image via OCR:\n\n${text}`,
+                                        context: JSON.stringify(
+                                            buildRecognitionChatContext({
+                                                text,
+                                                imageBase64: image.base64,
+                                                apiConfig: {
+                                                    service: 'openai',
+                                                    requestPath: serviceInstanceConfig.requestPath,
+                                                    model: serviceInstanceConfig.model || 'gpt-4o',
+                                                    apiKey: serviceInstanceConfig.apiKey,
+                                                    stream: true,
                                                 },
-                                                {
-                                                    role: 'assistant',
-                                                    content:
-                                                        'I have received the OCR text. How can I help you with it?',
-                                                },
-                                            ],
-                                        }),
+                                            })
+                                        ),
                                     });
                                 }}
                                 size='sm'

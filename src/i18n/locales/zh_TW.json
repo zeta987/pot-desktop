@@ -7,7 +7,10 @@
             "write_clipboard": "寫入剪貼簿",
             "plugin": "外掛程式",
             "coming": "即將推出…",
-            "clear": "清除"
+            "clear": "清除",
+            "clone_service": "複製服務",
+            "clone_service_failed": "無法複製服務。",
+            "service_list_save_failed": "無法儲存服務清單。"
         },
         "languages": {
             "auto": "自動偵測",
@@ -461,7 +464,10 @@
             "resume": "恢復",
             "paused_run": "{{total}} 個已暫停的服務",
             "expand_paused_run": "展開已暫停的服務",
-            "collapse_paused_run": "摺疊已暫停的服務"
+            "collapse_paused_run": "摺疊已暫停的服務",
+            "temporary_services": "臨時服務",
+            "temporary_services_hint": "僅在此視窗中執行，已儲存的啟用與暫停設定保持不變。",
+            "remove_temporary_service": "移除臨時服務"
         },
         "recognize": {
             "auto_run": "自動辨識",
@@ -484,7 +490,9 @@
             "delete_space": "刪除空格",
             "preview_markdown": "預覽 Markdown",
             "edit_text": "編輯文字",
-            "follow_up": "追問對話"
+            "follow_up": "追問對話",
+            "search_services": "搜尋服務",
+            "no_services_found": "找不到相符服務"
         },
         "chat": {
             "title": "追問對話",
@@ -498,7 +506,18 @@
             "regenerate_prompt": "從此處重新生成？",
             "regenerate": "重新生成",
             "yes": "是",
-            "no": "否"
+            "no": "否",
+            "error": "錯誤",
+            "error_endpoint": "端點",
+            "error_model": "模型",
+            "image_error_hint": "此對話包含圖片。設定的端點或模型可能不支援圖片輸入，或不接受此圖片大小。請選擇支援圖片輸入的服務後重試。",
+            "no_service_config": "此視窗沒有可用的對話服務設定。請先設定服務，再重新開啟對話。",
+            "attached_image": "附加圖片",
+            "image_preview_failed": "無法顯示附加圖片。",
+            "image_kept_on_edit": "編輯此文字時將保留附加圖片。",
+            "edit_message": "編輯訊息",
+            "confirm_edit": "確認編輯",
+            "cancel_edit": "取消編輯"
         }
     }
 }

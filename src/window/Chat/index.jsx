@@ -1,5 +1,5 @@
 import { Button, Tooltip } from '@nextui-org/react';
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { appWindow } from '@tauri-apps/api/window';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/tauri';
@@ -9,39 +9,71 @@ import { MdDeleteSweep } from 'react-icons/md';
 
 import { useConfig } from '../../hooks';
 import { osType } from '../../utils/env';
+import {
+    buildLegacySystemPrompt,
+    buildSystemPrompt,
+    hasImageContent,
+    normalizeInitialMessages,
+    replaceTextInContent,
+    resolveLanguageName,
+    toApiMessages,
+} from './chatContext';
 import { chatStream } from './chatApi';
 import MessageList from './MessageList';
 import InputArea from './InputArea';
 
-const APP_LANGUAGE_TO_NATURAL = {
-    zh_cn: 'Simplified Chinese',
-    zh_tw: 'Traditional Chinese',
-    en: 'English',
-    ja: 'Japanese',
-    ko: 'Korean',
-    fr: 'French',
-    es: 'Spanish',
-    ru: 'Russian',
-    de: 'German',
-    it: 'Italian',
-    tr: 'Turkish',
-    pt_pt: 'Portuguese',
-    pt_br: 'Brazilian Portuguese',
-    vi: 'Vietnamese',
-    id: 'Indonesian',
-    th: 'Thai',
-    ms: 'Malay',
-    ar: 'Arabic',
-    hi: 'Hindi',
-    nb_no: 'Norwegian Bokmål',
-    nn_no: 'Norwegian Nynorsk',
-    fa: 'Persian',
-    sv: 'Swedish',
-    pl: 'Polish',
-    nl: 'Dutch',
-    uk: 'Ukrainian',
-    he: 'Hebrew',
-};
+let messageSequence = 0;
+
+function createMessage(role, content, extra = {}) {
+    messageSequence += 1;
+    return { id: `chat-message-${messageSequence}`, role, content, ...extra };
+}
+
+function redactErrorDetails(value, apiKey) {
+    let text = String(value ?? '');
+    text = text.replace(/(https?:\/\/)[^@\s/:]+:[^@\s/]+@/gi, '$1[credentials omitted]@');
+    text = text.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=_-]+/g, '[image data omitted]');
+    if (typeof apiKey === 'string' && apiKey !== '') {
+        text = text.split(apiKey).join('[credential omitted]');
+    }
+    return text.replace(/([?&](?:api[-_]?key|key|token|access_token)=)[^\s&#)]+/gi, '$1[credential omitted]');
+}
+
+function displayEndpoint(requestPath) {
+    try {
+        const endpoint = new URL(requestPath);
+        endpoint.username = '';
+        endpoint.password = '';
+        endpoint.search = '';
+        endpoint.hash = '';
+        return endpoint.href;
+    } catch {
+        return 'Invalid endpoint';
+    }
+}
+
+function formatErrorMessage(t, config, errorMessage, withImage) {
+    const details = [];
+    if (config?.requestPath) {
+        details.push(
+            `${t('chat.error_endpoint', { defaultValue: 'Endpoint' })}: \`${displayEndpoint(config.requestPath)}\``
+        );
+    }
+    if (config?.model) {
+        details.push(`${t('chat.error_model', { defaultValue: 'Model' })}: \`${config.model}\``);
+    }
+
+    const label = t('chat.error', { defaultValue: 'Error' });
+    let message = `**${label}:** ${redactErrorDetails(errorMessage, config?.apiKey)}`;
+    if (details.length > 0) message += `\n\n${details.join(' · ')}`;
+    if (withImage) {
+        message += `\n\n${t('chat.image_error_hint', {
+            defaultValue:
+                'This conversation contains an image. The configured endpoint or model may not accept image input, or may reject this image size. Choose a service that supports image input and try again.',
+        })}`;
+    }
+    return message;
+}
 
 export default function Chat() {
     const [transparent] = useConfig('transparent', true);
@@ -49,8 +81,12 @@ export default function Chat() {
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [pinned, setPinned] = useState(false);
-    const [apiConfig, setApiConfig] = useState(null);
     const abortRef = useRef(null);
+    const apiConfigRef = useRef(null);
+    const requestIdRef = useRef(0);
+    const mountedRef = useRef(false);
+    const contextAppliedRef = useRef(false);
+    const initialRequestStartedRef = useRef(false);
     const { t } = useTranslation();
 
     useEffect(() => {
@@ -58,74 +94,110 @@ export default function Chat() {
     }, []);
 
     useEffect(() => {
-        if (messages.length > 0) return;
-        if (appLanguage === null) return;
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
-        invoke('get_chat_context', { label: appWindow.label }).then((contextJson) => {
-            if (!contextJson) return;
-            try {
-                const context = JSON.parse(contextJson);
-                setApiConfig(context.apiConfig);
-                if (context.initialMessages) {
-                    const nonSystemMessages = context.initialMessages.filter((msg) => msg.role !== 'system');
-                    const userLanguage = APP_LANGUAGE_TO_NATURAL[appLanguage] || 'English';
-                    const resultText = context.resultText || '';
-
-                    let systemContent;
-                    if (resultText) {
-                        systemContent = `Reply in ${userLanguage}. Analyze the following content carefully and provide a concise answer or opinion with a short explanation:\n\n'''\n${resultText}\n'''`;
-                    } else {
-                        systemContent = `Reply in ${userLanguage}. You are a helpful assistant.`;
-                    }
-
-                    setMessages([{ role: 'system', content: systemContent }, ...nonSystemMessages]);
-                }
-            } catch {
-                // Ignore parse errors
-            }
-        });
-    }, [appLanguage]);
-
-    const callApi = useCallback(
-        (messagesToSend) => {
-            if (!apiConfig) return;
+    const runRequest = useCallback(
+        (config, messagesToSend) => {
+            if (!config) return;
 
             abortRef.current?.();
-            setIsLoading(true);
+            const requestId = requestIdRef.current + 1;
+            requestIdRef.current = requestId;
+            const placeholder = createMessage('assistant', '');
+            const outgoingMessages = toApiMessages(messagesToSend);
+            const withImage = hasImageContent(outgoingMessages);
 
-            const assistantIdx = messagesToSend.length;
-            setMessages([...messagesToSend, { role: 'assistant', content: '' }]);
+            setIsLoading(true);
+            setMessages([...messagesToSend, placeholder]);
+
+            const isCurrentRequest = () => mountedRef.current && requestIdRef.current === requestId;
+            const updatePlaceholder = (content, localOnly = false) => {
+                setMessages((currentMessages) => {
+                    const index = currentMessages.findIndex((message) => message.id === placeholder.id);
+                    if (index === -1) return currentMessages;
+                    const updated = [...currentMessages];
+                    updated[index] = { ...updated[index], content, localOnly };
+                    return updated;
+                });
+            };
 
             abortRef.current = chatStream({
-                apiConfig,
-                messages: messagesToSend,
+                apiConfig: config,
+                messages: outgoingMessages,
                 onChunk: (accumulated) => {
-                    setMessages((prev) => {
-                        const next = [...prev];
-                        next[assistantIdx] = { role: 'assistant', content: accumulated };
-                        return next;
-                    });
+                    if (isCurrentRequest()) updatePlaceholder(accumulated);
                 },
                 onComplete: (finalText) => {
-                    setMessages((prev) => {
-                        const next = [...prev];
-                        next[assistantIdx] = { role: 'assistant', content: finalText };
-                        return next;
-                    });
+                    if (!isCurrentRequest()) return;
+                    abortRef.current = null;
+                    updatePlaceholder(finalText);
                     setIsLoading(false);
                 },
-                onError: (errMsg) => {
-                    setMessages((prev) => {
-                        const next = [...prev];
-                        next[assistantIdx] = { role: 'assistant', content: `**Error:** ${errMsg}` };
-                        return next;
-                    });
+                onError: (errorMessage) => {
+                    if (!isCurrentRequest()) return;
+                    abortRef.current = null;
+                    updatePlaceholder(formatErrorMessage(t, config, errorMessage, withImage), true);
                     setIsLoading(false);
                 },
             });
         },
-        [apiConfig]
+        [t]
     );
+
+    useEffect(() => {
+        if (appLanguage === null || contextAppliedRef.current) return;
+        contextAppliedRef.current = true;
+
+        invoke('get_chat_context', { label: appWindow.label })
+            .then((contextJson) => {
+                if (!mountedRef.current || !contextJson) return;
+
+                let context;
+                try {
+                    context = JSON.parse(contextJson);
+                } catch {
+                    return;
+                }
+                if (!context || typeof context !== 'object') return;
+
+                const config = context.apiConfig || null;
+                apiConfigRef.current = config;
+                const languageName = resolveLanguageName(appLanguage);
+                const initialMessages = normalizeInitialMessages(context.initialMessages).map((message) =>
+                    createMessage(message.role, message.content)
+                );
+                const systemPrompt = context.version
+                    ? buildSystemPrompt({ kind: context.kind, languageName })
+                    : buildLegacySystemPrompt(languageName, context.resultText);
+                const initialHistory = [createMessage('system', systemPrompt), ...initialMessages];
+
+                if (!config) {
+                    setMessages([
+                        ...initialHistory,
+                        createMessage(
+                            'assistant',
+                            `**${t('chat.error', { defaultValue: 'Error' })}:** ${t('chat.no_service_config', {
+                                defaultValue:
+                                    'No chat service configuration was passed to this window. Configure a chat service and open the chat again.',
+                            })}`,
+                            { localOnly: true }
+                        ),
+                    ]);
+                    return;
+                }
+
+                setMessages(initialHistory);
+                if (context.autoSubmit === true && initialMessages.length > 0 && !initialRequestStartedRef.current) {
+                    initialRequestStartedRef.current = true;
+                    runRequest(config, initialHistory);
+                }
+            })
+            .catch(() => {});
+    }, [appLanguage, runRequest, t]);
 
     const handlePin = async () => {
         const next = !pinned;
@@ -134,44 +206,57 @@ export default function Chat() {
     };
 
     const handleClear = () => {
-        setMessages((prev) => prev.filter((msg) => msg.role === 'system'));
+        abortRef.current?.();
+        abortRef.current = null;
+        requestIdRef.current += 1;
+        setIsLoading(false);
+        setMessages((currentMessages) => currentMessages.filter((message) => message.role === 'system'));
     };
 
     const sendMessage = (text) => {
-        if (!apiConfig) return;
-        const userMessage = { role: 'user', content: text };
-        callApi([...messages, userMessage]);
+        const config = apiConfigRef.current;
+        if (!config || isLoading) return;
+        runRequest(config, [...messages, createMessage('user', text)]);
     };
 
     const handleEditConfirm = (index, newContent, shouldRegenerate) => {
-        const updated = [...messages];
-        updated[index] = { ...updated[index], content: newContent };
+        const target = messages[index];
+        if (!target) return;
 
-        if (shouldRegenerate) {
-            const truncated = updated.slice(0, index + 1);
-            if (truncated[index].role === 'user') {
-                callApi(truncated);
-            } else {
-                // Assistant message edited — truncate and wait for user input
-                setMessages(truncated);
-            }
-        } else {
+        const updated = [...messages];
+        updated[index] = { ...target, content: replaceTextInContent(target.content, newContent) };
+        if (!shouldRegenerate) {
             setMessages(updated);
+            return;
         }
+
+        const truncated = updated.slice(0, index + 1);
+        const config = apiConfigRef.current;
+        if (truncated[index].role === 'user' && config) {
+            runRequest(config, truncated);
+            return;
+        }
+
+        abortRef.current?.();
+        abortRef.current = null;
+        requestIdRef.current += 1;
+        setIsLoading(false);
+        setMessages(truncated);
     };
 
     const handleRegenerate = () => {
-        const lastIdx = messages.length - 1;
-        if (messages[lastIdx]?.role !== 'assistant') return;
-        callApi(messages.slice(0, lastIdx));
+        const lastIndex = messages.length - 1;
+        if (messages[lastIndex]?.role !== 'assistant') return;
+        const config = apiConfigRef.current;
+        if (config) runRequest(config, messages.slice(0, lastIndex));
     };
 
     const handleSystemPromptChange = (newContent) => {
-        setMessages((prev) => {
-            if (prev.length === 0 || prev[0].role !== 'system') return prev;
-            const next = [...prev];
-            next[0] = { ...next[0], content: newContent };
-            return next;
+        setMessages((currentMessages) => {
+            if (currentMessages[0]?.role !== 'system') return currentMessages;
+            const updated = [...currentMessages];
+            updated[0] = { ...updated[0], content: newContent };
+            return updated;
         });
     };
 
@@ -181,7 +266,6 @@ export default function Chat() {
                 osType === 'Linux' && 'rounded-[10px] border-1 border-default-100'
             }`}
         >
-            {/* Title bar */}
             <div className='flex items-center justify-between px-2 h-[35px] select-none shrink-0'>
                 <div
                     data-tauri-drag-region='true'
@@ -227,7 +311,6 @@ export default function Chat() {
                 </div>
             </div>
 
-            {/* Messages */}
             <MessageList
                 messages={messages}
                 isLoading={isLoading}
@@ -236,7 +319,6 @@ export default function Chat() {
                 onSystemPromptChange={handleSystemPromptChange}
             />
 
-            {/* Input */}
             <InputArea
                 onSend={sendMessage}
                 isLoading={isLoading}

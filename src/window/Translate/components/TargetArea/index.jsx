@@ -14,14 +14,14 @@ import {
 import { BiCollapseVertical, BiExpandVertical } from 'react-icons/bi';
 import { BaseDirectory, readTextFile } from '@tauri-apps/api/fs';
 import { sendNotification } from '@tauri-apps/api/notification';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { writeText } from '@tauri-apps/api/clipboard';
 import PulseLoader from 'react-spinners/PulseLoader';
 import { TbTransformFilled } from 'react-icons/tb';
 import { HiOutlineVolumeUp } from 'react-icons/hi';
 import { semanticColors } from '@nextui-org/theme';
 import toast, { Toaster } from 'react-hot-toast';
-import { MdContentCopy, MdPause, MdPlayArrow } from 'react-icons/md';
+import { MdClose, MdContentCopy, MdPause, MdPlayArrow } from 'react-icons/md';
 import { BsChatDots } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/tauri';
@@ -45,6 +45,9 @@ import { isLlmService } from '../../../../utils/llm_services';
 import { createTargetAreaReveal } from '../../utils/target_area_reveal';
 import { runTranslation } from '../../utils/translation_run';
 import { createTranslationRuns } from '../../utils/translation_runs';
+import { preserveReaderScroll } from '../../utils/reader_scroll';
+import { getTranslationRuntimeConfig } from '../../utils/temporary_services';
+import { buildTranslationChatContext } from '../../../Chat/chatContext';
 
 import { info, error as logError } from 'tauri-plugin-log-api';
 import {
@@ -65,11 +68,10 @@ const translationRuns = createTranslationRuns();
  * a built-in service is already there. Both come back as the same call, so a run does not
  * have to know which kind it is driving.
  */
-const loadTranslateCall = async (serviceName, isPluginService, instanceConfig) => {
+const loadTranslateCall = async (serviceName, isPluginService) => {
     if (!isPluginService) {
         return (text, from, to, options) => builtinServices[serviceName].translate(text, from, to, options);
     }
-    instanceConfig['enable'] = 'true';
     const [func, utils] = await invoke_plugin('translate', serviceName);
     return (text, from, to, options) => func(text, from, to, { ...options, utils });
 };
@@ -82,7 +84,9 @@ export default function TargetArea(props) {
         pluginList,
         serviceInstanceConfigMap,
         isPaused,
+        isTemporary,
         onTogglePause,
+        onRemoveTemporary,
         ...drag
     } = props;
 
@@ -197,15 +201,16 @@ export default function TargetArea(props) {
             newTargetLanguage = translateSecondLanguage;
         }
         const instanceConfig = serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
+        const runtimeConfig = getTranslationRuntimeConfig(instanceConfig, isPluginService);
 
         await runTranslation(
             {
                 isLanguagePairSupported: sourceLanguage in languages && targetLanguage in languages,
-                load: () => loadTranslateCall(translateServiceName, isPluginService, instanceConfig),
+                load: () => loadTranslateCall(translateServiceName, isPluginService),
                 text: sourceText.trim(),
                 from: languages[sourceLanguage],
                 to: languages[newTargetLanguage],
-                config: instanceConfig,
+                config: runtimeConfig,
                 detect: detectLanguage,
                 isSuperseded: () => !run.isCurrent(),
                 applyResult: (v) => setResult(typeof v === 'string' ? v.trim() : v),
@@ -253,12 +258,16 @@ export default function TargetArea(props) {
     };
 
     // hide empty textarea
-    useEffect(() => {
-        if (textAreaRef.current !== null) {
-            textAreaRef.current.style.height = '0px';
-            if (result !== '') {
-                textAreaRef.current.style.height = textAreaRef.current.scrollHeight + 'px';
-            }
+    useLayoutEffect(() => {
+        const textArea = textAreaRef.current;
+        if (textArea !== null) {
+            const viewport = textArea.closest('[data-translate-scroll-viewport]');
+            preserveReaderScroll(viewport, () => {
+                textArea.style.height = '0px';
+                if (result !== '') {
+                    textArea.style.height = textArea.scrollHeight + 'px';
+                }
+            });
         }
     }, [result]);
 
@@ -308,6 +317,11 @@ export default function TargetArea(props) {
         from: { height: 0 },
         to: { height: hide || isPaused ? 0 : bounds.height },
     });
+    const activityControlLabel = isTemporary
+        ? t('translate.remove_temporary_service', { defaultValue: 'Remove temporary service' })
+        : isPaused
+          ? t('translate.resume')
+          : t('translate.pause');
 
     return (
         <Card
@@ -416,15 +430,22 @@ export default function TargetArea(props) {
                 </div>
                 {/* pause/resume and content collapse */}
                 <div className='flex'>
-                    <Tooltip content={isPaused ? t('translate.resume') : t('translate.pause')}>
+                    <Tooltip content={activityControlLabel}>
                         <Button
+                            aria-label={activityControlLabel}
                             size='sm'
                             isIconOnly
                             variant='light'
                             className='h-[20px] w-[20px]'
-                            onPress={() => onTogglePause(name)}
+                            onPress={() => (isTemporary ? onRemoveTemporary(name) : onTogglePause(name))}
                         >
-                            {isPaused ? <MdPlayArrow className='text-[16px]' /> : <MdPause className='text-[16px]' />}
+                            {isTemporary ? (
+                                <MdClose className='text-[16px]' />
+                            ) : isPaused ? (
+                                <MdPlayArrow className='text-[16px]' />
+                            ) : (
+                                <MdPause className='text-[16px]' />
+                            )}
                         </Button>
                     </Tooltip>
                     {!isPaused && (
@@ -649,21 +670,20 @@ export default function TargetArea(props) {
                                         }
                                         const instanceConfig =
                                             serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
+                                        const runtimeConfig = getTranslationRuntimeConfig(
+                                            instanceConfig,
+                                            isPluginService
+                                        );
 
                                         await runTranslation(
                                             {
                                                 isLanguagePairSupported:
                                                     newSourceLanguage in languages && newTargetLanguage in languages,
-                                                load: () =>
-                                                    loadTranslateCall(
-                                                        translateServiceName,
-                                                        isPluginService,
-                                                        instanceConfig
-                                                    ),
+                                                load: () => loadTranslateCall(translateServiceName, isPluginService),
                                                 text: result.trim(),
                                                 from: languages[newSourceLanguage],
                                                 to: languages[newTargetLanguage],
-                                                config: instanceConfig,
+                                                config: runtimeConfig,
                                                 // The two paths have always disagreed on what to hand a service as
                                                 // the detected language here. Kept as-is so this stays a refactor.
                                                 detect: isPluginService ? detectLanguage : newSourceLanguage,
@@ -690,23 +710,20 @@ export default function TargetArea(props) {
                                                 const config =
                                                     serviceInstanceConfigMap[currentTranslateServiceInstanceKey] ?? {};
                                                 invoke('open_chat_window', {
-                                                    context: JSON.stringify({
-                                                        source: 'translate',
-                                                        sourceText: sourceText,
-                                                        resultText: result,
-                                                        apiConfig: {
-                                                            service: config.service || 'openai',
-                                                            requestPath: config.requestPath,
-                                                            model: config.model,
-                                                            apiKey: config.apiKey,
-                                                            stream: config.stream ?? true,
-                                                            requestArguments: config.requestArguments,
-                                                        },
-                                                        initialMessages: [
-                                                            { role: 'user', content: sourceText },
-                                                            { role: 'assistant', content: result },
-                                                        ],
-                                                    }),
+                                                    context: JSON.stringify(
+                                                        buildTranslationChatContext({
+                                                            sourceText,
+                                                            resultText: result,
+                                                            apiConfig: {
+                                                                service: config.service || 'openai',
+                                                                requestPath: config.requestPath,
+                                                                model: config.model,
+                                                                apiKey: config.apiKey,
+                                                                stream: config.stream ?? true,
+                                                                requestArguments: config.requestArguments,
+                                                            },
+                                                        })
+                                                    ),
                                                 });
                                             }}
                                         >

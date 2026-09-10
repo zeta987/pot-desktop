@@ -2,36 +2,45 @@ import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Card, Spacer, Button, useDisclosure } from '@nextui-org/react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 import { useToastStyle } from '../../../../../hooks';
 import SelectPluginModal from '../SelectPluginModal';
 import { osType } from '../../../../../utils/env';
 import { useConfig, deleteKey } from '../../../../../hooks';
+import { cloneServiceInstance as cloneServiceInstanceConfig } from '../../../../../utils/clone_service_instance';
 import { getAutoRecognitionServices } from '../../../../Recognize/utils/recognition_selection';
+import { useServiceInstanceList } from '../useServiceInstanceList';
+import { createServiceListReorder } from '../service_list_reorder';
 import ServiceItem from './ServiceItem';
 import SelectModal from './SelectModal';
 import ConfigModal from './ConfigModal';
 
+const SERVICE_LIST_KEY = 'recognize_service_list';
+
 export default function Recognize(props) {
-    const [recognizeServiceInstanceList, setRecognizeServiceInstanceList] = useConfig('recognize_service_list', [
-        'system',
-        'tesseract',
-    ]);
+    const [recognizeServiceInstanceList, updateRecognizeServiceInstanceList, runRecognizeServiceListOperation] =
+        useServiceInstanceList(SERVICE_LIST_KEY, ['system', 'tesseract']);
 
     return (
         recognizeServiceInstanceList !== null && (
             <RecognizeSettings
                 {...props}
                 recognizeServiceInstanceList={recognizeServiceInstanceList}
-                setRecognizeServiceInstanceList={setRecognizeServiceInstanceList}
+                updateRecognizeServiceInstanceList={updateRecognizeServiceInstanceList}
+                runRecognizeServiceListOperation={runRecognizeServiceListOperation}
             />
         )
     );
 }
 
 function RecognizeSettings(props) {
-    const { pluginList, recognizeServiceInstanceList, setRecognizeServiceInstanceList } = props;
+    const {
+        pluginList,
+        recognizeServiceInstanceList,
+        updateRecognizeServiceInstanceList,
+        runRecognizeServiceListOperation,
+    } = props;
     const {
         isOpen: isSelectPluginOpen,
         onOpen: onSelectPluginOpen,
@@ -40,51 +49,75 @@ function RecognizeSettings(props) {
     const { isOpen: isSelectOpen, onOpen: onSelectOpen, onOpenChange: onSelectOpenChange } = useDisclosure();
     const { isOpen: isConfigOpen, onOpen: onConfigOpen, onOpenChange: onConfigOpenChange } = useDisclosure();
     const [currentConfigKey, setCurrentConfigKey] = useState('system');
-    const [recognizeAutoServiceInstanceList, setRecognizeAutoServiceInstanceList] = useConfig(
+    const [recognizeAutoServiceInstanceList, setRecognizeAutoServiceInstanceListState] = useConfig(
         'recognize_auto_service_list',
         recognizeServiceInstanceList.slice(0, 1)
     );
+    const recognizeAutoServiceInstanceListRef = useRef(recognizeAutoServiceInstanceList);
+    recognizeAutoServiceInstanceListRef.current = recognizeAutoServiceInstanceList;
+    const getRecognizeAutoServiceInstanceList = () => recognizeAutoServiceInstanceListRef.current;
+    const setRecognizeAutoServiceInstanceList = (nextList) => {
+        recognizeAutoServiceInstanceListRef.current = nextList;
+        setRecognizeAutoServiceInstanceListState(nextList);
+    };
 
     const { t } = useTranslation();
     const toastStyle = useToastStyle();
+    const showListSaveError = () => {
+        toast.error(t('common.service_list_save_failed', { defaultValue: 'Could not save service list.' }), {
+            style: toastStyle,
+        });
+    };
 
     if (recognizeAutoServiceInstanceList === null) return null;
     const activeAutoKeys = getAutoRecognitionServices(recognizeServiceInstanceList, recognizeAutoServiceInstanceList);
 
-    const reorder = (list, startIndex, endIndex) => {
-        const result = Array.from(list);
-        const [removed] = result.splice(startIndex, 1);
-        result.splice(endIndex, 0, removed);
-        return result;
-    };
     const onDragEnd = async (result) => {
         if (!result.destination) return;
-        const items = reorder(recognizeServiceInstanceList, result.source.index, result.destination.index);
-        setRecognizeServiceInstanceList(items);
-        setRecognizeAutoServiceInstanceList(getAutoRecognitionServices(items, activeAutoKeys));
+        const reorderCurrentList = createServiceListReorder(recognizeServiceInstanceList, result);
+        const items = await updateRecognizeServiceInstanceList(reorderCurrentList).catch(showListSaveError);
+        if (items) {
+            setRecognizeAutoServiceInstanceList(
+                getAutoRecognitionServices(items, getRecognizeAutoServiceInstanceList())
+            );
+        }
     };
 
-    const deleteServiceInstance = (instanceKey) => {
-        if (recognizeServiceInstanceList.length === 1) {
-            toast.error(t('config.service.least'), { style: toastStyle });
-            return;
-        } else {
-            const serviceInstanceList = recognizeServiceInstanceList.filter((x) => x !== instanceKey);
-            setRecognizeServiceInstanceList(serviceInstanceList);
-            setRecognizeAutoServiceInstanceList(getAutoRecognitionServices(serviceInstanceList, activeAutoKeys));
+    const deleteServiceInstance = async (instanceKey) => {
+        await runRecognizeServiceListOperation(async ({ getCurrentList, persistCurrentList }) => {
+            const currentList = getCurrentList() ?? [];
+            if (currentList.length === 1) {
+                toast.error(t('config.service.least'), { style: toastStyle });
+                return;
+            }
+            const serviceInstanceList = currentList.filter((x) => x !== instanceKey);
+            await persistCurrentList(serviceInstanceList);
+            setRecognizeAutoServiceInstanceList(
+                getAutoRecognitionServices(serviceInstanceList, getRecognizeAutoServiceInstanceList())
+            );
             deleteKey(instanceKey);
-        }
+        }).catch(showListSaveError);
     };
-    const updateServiceInstanceList = (instanceKey) => {
-        if (recognizeServiceInstanceList.includes(instanceKey)) {
-            return;
-        } else {
-            const newList = [...recognizeServiceInstanceList, instanceKey];
-            setRecognizeServiceInstanceList(newList);
-        }
-    };
+    const updateServiceInstanceList = (instanceKey) =>
+        updateRecognizeServiceInstanceList((currentList) =>
+            currentList.includes(instanceKey) ? currentList : [...currentList, instanceKey]
+        ).catch(showListSaveError);
+    const cloneServiceInstance = (instanceKey) =>
+        runRecognizeServiceListOperation(({ getCurrentList, publishCurrentList }) =>
+            cloneServiceInstanceConfig(instanceKey, {
+                listKey: SERVICE_LIST_KEY,
+                getCurrentList,
+                publishCurrentList,
+            })
+        ).catch(() => {
+            toast.error(t('common.clone_service_failed', { defaultValue: 'Could not duplicate service.' }), {
+                style: toastStyle,
+            });
+        });
     const updateAutoServiceInstanceList = (instanceKey, enabled) => {
-        const autoServiceInstanceList = new Set(activeAutoKeys);
+        const autoServiceInstanceList = new Set(
+            getAutoRecognitionServices(recognizeServiceInstanceList, getRecognizeAutoServiceInstanceList())
+        );
         if (enabled) {
             autoServiceInstanceList.add(instanceKey);
         } else {
@@ -135,6 +168,7 @@ function RecognizeSettings(props) {
                                                                 key={x}
                                                                 pluginList={pluginList}
                                                                 deleteServiceInstance={deleteServiceInstance}
+                                                                cloneServiceInstance={cloneServiceInstance}
                                                                 setCurrentConfigKey={setCurrentConfigKey}
                                                                 onConfigOpen={onConfigOpen}
                                                                 autoRunEnabled={activeAutoKeys.includes(x)}

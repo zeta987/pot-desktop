@@ -1,6 +1,6 @@
 import { RxDragHandleHorizontal } from 'react-icons/rx';
 import { Spacer, Button, Switch } from '@nextui-org/react';
-import { MdDeleteOutline } from 'react-icons/md';
+import { MdContentCopy, MdDeleteOutline } from 'react-icons/md';
 import { useTranslation } from 'react-i18next';
 import { BiSolidEdit } from 'react-icons/bi';
 import React from 'react';
@@ -20,6 +20,7 @@ export default function ServiceItem(props) {
         serviceInstanceKey,
         pluginList,
         deleteServiceInstance,
+        cloneServiceInstance,
         setCurrentConfigKey,
         onConfigOpen,
         autoRunEnabled,
@@ -29,6 +30,7 @@ export default function ServiceItem(props) {
     const { t } = useTranslation();
 
     const [serviceInstanceConfig, setServiceInstanceConfig] = useConfig(serviceInstanceKey, {});
+    const [isCloning, setIsCloning] = React.useState(false);
 
     const serviceSourceType = getServiceSouceType(serviceInstanceKey);
     const serviceName = getServiceName(serviceInstanceKey);
@@ -97,6 +99,24 @@ export default function ServiceItem(props) {
                         }}
                     >
                         <BiSolidEdit className='text-2xl' />
+                    </Button>
+                    <Spacer x={2} />
+                    <Button
+                        isIconOnly
+                        size='sm'
+                        variant='light'
+                        isDisabled={isCloning}
+                        aria-label={t('common.clone_service', { defaultValue: 'Duplicate service' })}
+                        onPress={async () => {
+                            setIsCloning(true);
+                            try {
+                                await cloneServiceInstance(serviceInstanceKey);
+                            } finally {
+                                setIsCloning(false);
+                            }
+                        }}
+                    >
+                        <MdContentCopy className='text-2xl' />
                     </Button>
                     <Spacer x={2} />
                     <Button

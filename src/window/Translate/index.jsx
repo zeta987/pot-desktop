@@ -8,12 +8,22 @@ import { AiFillCloseCircle } from 'react-icons/ai';
 import React, { useState, useEffect, useMemo } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { BsPinFill } from 'react-icons/bs';
+import { useTranslation } from 'react-i18next';
 
 import PausedRun from './components/PausedRun';
+import TemporaryServicePicker from './components/TemporaryServicePicker';
 import LanguageArea from './components/LanguageArea';
 import SourceArea from './components/SourceArea';
 import TargetArea from './components/TargetArea';
 import { buildLayout, reorderLayout, slotDraggableId } from './utils/paused_runs';
+import { deriveTemporaryServiceState, updateTemporaryServiceSelection } from './utils/temporary_services';
+import * as builtinTranslateServices from '../../services/translate';
+import {
+    INSTANCE_NAME_CONFIG_KEY,
+    getDisplayInstanceName,
+    getServiceName,
+    whetherPluginService,
+} from '../../utils/service_instance';
 import { osType } from '../../utils/env';
 import { useConfig } from '../../hooks';
 import { store } from '../../utils/store';
@@ -66,6 +76,7 @@ void listen('tauri://move', () => {
 });
 
 export default function Translate() {
+    const { t } = useTranslation();
     const [closeOnBlur] = useConfig('translate_close_on_blur', true);
     const [alwaysOnTop] = useConfig('translate_always_on_top', false);
     const [windowPosition] = useConfig('translate_window_position', 'mouse');
@@ -105,22 +116,72 @@ export default function Translate() {
     // a run is derived from adjacency, so its id stops meaning the same thing once the
     // ordering or the paused set changes. See docs/adr/0001.
     const [expandedRunIds, setExpandedRunIds] = useState([]);
+    // Service Instances activated only for this mounted window. Their persisted
+    // Enabled and Paused settings remain the baseline restored on deselection.
+    const [temporaryServiceKeys, setTemporaryServiceKeys] = useState([]);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const temporaryState = useMemo(() => {
+        if (translateServiceInstanceList === null) {
+            return {
+                candidateKeys: [],
+                activeTemporaryKeys: [],
+                effectivePausedKeys: [],
+                effectiveDisabledKeys: [],
+            };
+        }
+        return deriveTemporaryServiceState({
+            serviceList: translateServiceInstanceList,
+            serviceInstanceConfigMap,
+            pausedKeys: validPausedServices,
+            selectedKeys: temporaryServiceKeys,
+        });
+    }, [translateServiceInstanceList, serviceInstanceConfigMap, pausedServices, temporaryServiceKeys]);
+
+    const temporaryCandidateOptions = useMemo(
+        () =>
+            temporaryState.candidateKeys.map((key) => {
+                const serviceName = getServiceName(key);
+                const instanceConfig = serviceInstanceConfigMap?.[key] ?? {};
+                const defaultName = whetherPluginService(key)
+                    ? pluginList?.translate?.[serviceName]?.display ?? serviceName
+                    : t(`services.translate.${serviceName}.title`, {
+                          defaultValue: builtinTranslateServices[serviceName]?.info?.name ?? serviceName,
+                      });
+                return {
+                    key,
+                    label: getDisplayInstanceName(instanceConfig[INSTANCE_NAME_CONFIG_KEY], () => defaultName),
+                };
+            }),
+        [temporaryState.candidateKeys, serviceInstanceConfigMap, pluginList, t]
+    );
+
+    const setTemporarySelection = (nextKeys) => {
+        setTemporaryServiceKeys((currentKeys) => updateTemporaryServiceSelection(currentKeys, nextKeys, isDragging));
+    };
+
+    const removeTemporaryService = (serviceInstanceKey) => {
+        setTemporaryServiceKeys((currentKeys) =>
+            updateTemporaryServiceSelection(
+                currentKeys,
+                currentKeys.filter((key) => key !== serviceInstanceKey),
+                isDragging
+            )
+        );
+    };
 
     const layout = useMemo(() => {
         if (translateServiceInstanceList === null || serviceInstanceConfigMap === null) {
             return [];
         }
-        const disabledKeys = translateServiceInstanceList.filter(
-            (key) => ((serviceInstanceConfigMap[key] ?? {})['enable'] ?? true) === false
-        );
         return buildLayout({
             serviceList: translateServiceInstanceList,
-            pausedKeys: validPausedServices,
-            disabledKeys,
+            pausedKeys: temporaryState.effectivePausedKeys,
+            disabledKeys: temporaryState.effectiveDisabledKeys,
             collapseEnabled: collapsePausedRuns ?? false,
             expandedRunIds,
         });
-    }, [translateServiceInstanceList, serviceInstanceConfigMap, pausedServices, collapsePausedRuns, expandedRunIds]);
+    }, [translateServiceInstanceList, serviceInstanceConfigMap, collapsePausedRuns, expandedRunIds, temporaryState]);
 
     // Position of each instance in the stored list, used to keep TargetArea's own
     // per-panel bookkeeping stable regardless of how rows are grouped.
@@ -136,9 +197,12 @@ export default function Translate() {
         setExpandedRunIds((ids) => (ids.includes(runId) ? ids.filter((id) => id !== runId) : [...ids, runId]));
     };
 
+    const onDragStart = () => setIsDragging(true);
+
     // The moved row is resolved by draggable id rather than by source index, so the
     // drop stays correct even if the layout is rebuilt while the drag is in flight.
     const onDragEnd = (result) => {
+        setIsDragging(false);
         if (!result.destination) return;
         setTranslateServiceInstanceList(reorderLayout(layout, result.draggableId, result.destination.index));
     };
@@ -322,7 +386,11 @@ export default function Translate() {
                     </Button>
                 </div>
                 <div className={`${osType === 'Linux' ? 'h-[calc(100vh-37px)]' : 'h-[calc(100vh-35px)]'} px-[8px]`}>
-                    <div className='h-full overflow-y-auto'>
+                    <div
+                        className='h-full overflow-y-auto'
+                        data-translate-scroll-viewport='true'
+                        style={{ overflowAnchor: 'none' }}
+                    >
                         <div>
                             {serviceInstanceConfigMap !== null && (
                                 <SourceArea
@@ -335,7 +403,23 @@ export default function Translate() {
                             <LanguageArea />
                             <Spacer y={2} />
                         </div>
-                        <DragDropContext onDragEnd={onDragEnd}>
+                        {serviceInstanceConfigMap !== null && (
+                            <TemporaryServicePicker
+                                label={t('translate.temporary_services', { defaultValue: 'Temporary services' })}
+                                hint={t('translate.temporary_services_hint', {
+                                    defaultValue:
+                                        'Runs only in this window; saved enabled and paused settings stay unchanged.',
+                                })}
+                                candidates={temporaryCandidateOptions}
+                                value={temporaryState.activeTemporaryKeys}
+                                isDragging={isDragging}
+                                onChange={setTemporarySelection}
+                            />
+                        )}
+                        <DragDropContext
+                            onDragStart={onDragStart}
+                            onDragEnd={onDragEnd}
+                        >
                             <Droppable
                                 droppableId='droppable'
                                 direction='vertical'
@@ -356,8 +440,12 @@ export default function Translate() {
                                                     translateServiceInstanceList={translateServiceInstanceList}
                                                     pluginList={pluginList}
                                                     serviceInstanceConfigMap={serviceInstanceConfigMap}
-                                                    isPaused={validPausedServices.includes(slot.keys[0])}
+                                                    isPaused={temporaryState.effectivePausedKeys.includes(slot.keys[0])}
+                                                    isTemporary={temporaryState.activeTemporaryKeys.includes(
+                                                        slot.keys[0]
+                                                    )}
                                                     onTogglePause={togglePauseService}
+                                                    onRemoveTemporary={removeTemporaryService}
                                                 />
                                             );
 

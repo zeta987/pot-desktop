@@ -11,6 +11,7 @@ const native = vi.hoisted(() => {
         save: vi.fn(),
         has: vi.fn(),
         delete: vi.fn(),
+        toastError: vi.fn(),
         values: new Map(),
         onDragEnd: null,
     };
@@ -41,7 +42,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('react-hot-toast', () => ({
-    default: { error: vi.fn() },
+    default: { error: native.toastError },
     Toaster: () => null,
 }));
 
@@ -235,13 +236,150 @@ describe('OCR automatic service settings', () => {
         expect(native.values.has('system@primary')).toBe(false);
     });
 
+    it('keeps the service and its config when the list cannot be durably updated before deletion', async () => {
+        seedServices(['system@primary', 'tesseract@spare'], ['system@primary']);
+        native.set.mockImplementation((key, value) => {
+            if (key === SERVICE_LIST_KEY && Array.isArray(value) && value.length === 1) {
+                throw new Error('list write failed');
+            }
+            native.values.set(key, value);
+        });
+        renderSettings();
+
+        await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(2));
+        const firstServiceRow = screen.getByText('services.recognize.system.title').closest('.bg-content2');
+        fireEvent.click(within(firstServiceRow).getByRole('button', { name: 'common.delete' }));
+
+        await waitFor(() =>
+            expect(native.toastError).toHaveBeenCalledWith('common.service_list_save_failed', { style: {} })
+        );
+        expect(native.values.get(SERVICE_LIST_KEY)).toEqual(['system@primary', 'tesseract@spare']);
+        expect(native.values.has('system@primary')).toBe(true);
+        expect(native.delete).not.toHaveBeenCalledWith('system@primary');
+    });
+
+    it('keeps every current key when a queued drag targets a service deleted by a delayed save', async () => {
+        seedServices(['system@primary', 'tesseract@fast', 'tesseract@spare'], ['system@primary']);
+        const deleteSave = deferred();
+        native.save.mockImplementationOnce(() => deleteSave.promise);
+        renderSettings();
+
+        await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(3));
+        const firstServiceRow = screen.getByText('services.recognize.system.title').closest('.bg-content2');
+        fireEvent.click(within(firstServiceRow).getByRole('button', { name: 'common.delete' }));
+        await waitFor(() => expect(native.save).toHaveBeenCalledOnce());
+
+        fireEvent.click(screen.getAllByRole('switch')[2]);
+        let dragPromise;
+        act(() => {
+            dragPromise = native.onDragEnd({
+                draggableId: 'tesseract@spare',
+                source: { index: 2 },
+                destination: { index: 0 },
+            });
+        });
+
+        await act(async () => {
+            deleteSave.resolve();
+            await dragPromise;
+        });
+
+        await waitFor(() => expect(native.values.get(SERVICE_LIST_KEY)).toEqual(['tesseract@fast', 'tesseract@spare']));
+        await waitFor(() => expect(native.values.get(AUTO_SERVICE_LIST_KEY)).toEqual(['tesseract@spare']));
+        expect(native.values.get(SERVICE_LIST_KEY)).not.toContain(undefined);
+        expect(new Set(native.values.get(SERVICE_LIST_KEY)).size).toBe(2);
+    });
+
+    it('duplicates a configured service from its row and persists the copied instance', async () => {
+        const sourceConfig = {
+            apiKey: 'secret-value',
+            apiUrl: 'https://ocr.example.test/v1',
+            enable: false,
+            prompts: { system: 'Read every line' },
+        };
+        seedServices(['tesseract@primary'], ['tesseract@primary']);
+        native.values.set('tesseract@primary', sourceConfig);
+        const persisted = deferred();
+        native.save.mockImplementationOnce(() => persisted.promise);
+        renderSettings();
+
+        await waitFor(() => expect(screen.getByText('services.recognize.tesseract.title')).toBeInTheDocument());
+        const serviceRow = screen.getByText('services.recognize.tesseract.title').closest('.bg-content2');
+        fireEvent.click(within(serviceRow).getByRole('button', { name: 'common.clone_service' }));
+
+        await waitFor(() => expect(native.save).toHaveBeenCalledOnce());
+        expect(native.values.get(SERVICE_LIST_KEY)).toHaveLength(2);
+        expect(screen.getAllByText('services.recognize.tesseract.title')).toHaveLength(1);
+        persisted.resolve();
+        await waitFor(() => expect(native.values.get(SERVICE_LIST_KEY)).toHaveLength(2));
+        await waitFor(() => expect(screen.getAllByText('services.recognize.tesseract.title')).toHaveLength(2));
+        const clonedKey = native.values.get(SERVICE_LIST_KEY)[1];
+        expect(clonedKey).toMatch(/^tesseract@/);
+        expect(clonedKey).not.toBe('tesseract@primary');
+        expect(native.values.get(clonedKey)).toEqual(sourceConfig);
+        expect(native.values.get(clonedKey)).not.toBe(sourceConfig);
+        expect(native.save).toHaveBeenCalled();
+        expect(native.emit).toHaveBeenCalledWith('recognize_service_list_changed', ['tesseract@primary', clonedKey]);
+    });
+
+    it('retains both new instances when two different service rows are duplicated together', async () => {
+        seedServices(['tesseract@primary', 'tesseract@secondary'], ['tesseract@primary']);
+        native.values.set('tesseract@primary', { apiKey: 'first-secret' });
+        native.values.set('tesseract@secondary', { apiKey: 'second-secret' });
+        renderSettings();
+
+        await waitFor(() => expect(screen.getAllByText('services.recognize.tesseract.title')).toHaveLength(2));
+        const serviceRows = screen
+            .getAllByText('services.recognize.tesseract.title')
+            .map((title) => title.closest('.bg-content2'));
+
+        fireEvent.click(within(serviceRows[0]).getByRole('button', { name: 'common.clone_service' }));
+        fireEvent.click(within(serviceRows[1]).getByRole('button', { name: 'common.clone_service' }));
+
+        await waitFor(() => expect(native.values.get(SERVICE_LIST_KEY)).toHaveLength(4));
+        const [firstCloneKey, secondCloneKey] = native.values.get(SERVICE_LIST_KEY).slice(2);
+        expect(firstCloneKey).toMatch(/^tesseract@/);
+        expect(secondCloneKey).toMatch(/^tesseract@/);
+        expect(firstCloneKey).not.toBe(secondCloneKey);
+        expect(native.values.get(firstCloneKey)).toEqual({ apiKey: 'first-secret' });
+        expect(native.values.get(secondCloneKey)).toEqual({ apiKey: 'second-secret' });
+    });
+
+    it('rolls back and reports a safe error when final-list persistence fails after writing the copied config', async () => {
+        seedServices(['tesseract@primary'], ['tesseract@primary']);
+        native.values.set('tesseract@primary', { apiKey: 'secret-value' });
+        let failedFinalListWrite = false;
+        native.set.mockImplementation((key, value) => {
+            if (key === SERVICE_LIST_KEY && Array.isArray(value) && value.length === 2 && !failedFinalListWrite) {
+                failedFinalListWrite = true;
+                throw new Error('list write failed');
+            }
+            native.values.set(key, value);
+        });
+        renderSettings();
+
+        await waitFor(() => expect(screen.getByText('services.recognize.tesseract.title')).toBeInTheDocument());
+        const serviceRow = screen.getByText('services.recognize.tesseract.title').closest('.bg-content2');
+        fireEvent.click(within(serviceRow).getByRole('button', { name: 'common.clone_service' }));
+
+        await waitFor(() =>
+            expect(native.toastError).toHaveBeenCalledWith('common.clone_service_failed', { style: {} })
+        );
+        expect(native.values.get(SERVICE_LIST_KEY)).toEqual(['tesseract@primary']);
+        expect([...native.values.keys()].filter((key) => key.startsWith('tesseract@'))).toEqual(['tesseract@primary']);
+    });
+
     it('reorders the complete service list and retains automatic picks in the new configured order', async () => {
         seedServices(['system@primary', 'tesseract@fast', 'tesseract@spare'], ['system@primary', 'tesseract@spare']);
         renderSettings();
 
         await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(3));
         await act(async () => {
-            await native.onDragEnd({ source: { index: 0 }, destination: { index: 2 } });
+            await native.onDragEnd({
+                draggableId: 'system@primary',
+                source: { index: 0 },
+                destination: { index: 2 },
+            });
         });
 
         await waitFor(() =>
@@ -250,6 +388,37 @@ describe('OCR automatic service settings', () => {
         await waitFor(() =>
             expect(native.values.get(AUTO_SERVICE_LIST_KEY)).toEqual(['tesseract@spare', 'system@primary'])
         );
+    });
+
+    it('retains an automatic OCR toggle changed while a reordered service list is still saving', async () => {
+        seedServices(['system@primary', 'tesseract@fast'], ['system@primary']);
+        const reorderSave = deferred();
+        native.save.mockImplementationOnce(() => reorderSave.promise);
+        renderSettings();
+
+        await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(2));
+        let reorderPromise;
+        act(() => {
+            reorderPromise = native.onDragEnd({
+                draggableId: 'system@primary',
+                source: { index: 0 },
+                destination: { index: 1 },
+            });
+        });
+        await waitFor(() => expect(native.save).toHaveBeenCalledOnce());
+        fireEvent.click(screen.getAllByRole('switch')[1]);
+
+        await act(async () => {
+            reorderSave.resolve();
+            await reorderPromise;
+        });
+
+        await waitFor(() => expect(native.values.get(SERVICE_LIST_KEY)).toEqual(['tesseract@fast', 'system@primary']));
+        await waitFor(() =>
+            expect(native.values.get(AUTO_SERVICE_LIST_KEY)).toEqual(['tesseract@fast', 'system@primary'])
+        );
+        expect(screen.getAllByRole('switch')[0]).toBeChecked();
+        expect(screen.getAllByRole('switch')[1]).toBeChecked();
     });
 
     it('does not write either service list when a drag is cancelled', async () => {

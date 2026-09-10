@@ -6,6 +6,48 @@ import { useTranslation } from 'react-i18next';
 import { IoReload } from 'react-icons/io5';
 
 import MarkdownRenderer from '../../components/MarkdownRenderer';
+import { getImageParts, getTextFromContent } from './chatContext';
+
+function ImageAttachment({ url, alt, failedText }) {
+    const [failed, setFailed] = useState(false);
+    if (failed) return <p className='text-xs text-danger'>{failedText}</p>;
+
+    return (
+        <img
+            src={url}
+            alt={alt}
+            className='max-h-[200px] max-w-full rounded-md border-1 border-default-200 object-contain'
+            draggable={false}
+            onError={() => setFailed(true)}
+        />
+    );
+}
+
+function MessageBody({ role, content, t }) {
+    const images = getImageParts(content);
+    const text = getTextFromContent(content);
+
+    return (
+        <div className='space-y-2'>
+            {images.map((part, index) => (
+                <ImageAttachment
+                    key={`image-${index}`}
+                    url={part.image_url.url}
+                    alt={t('chat.attached_image', { defaultValue: 'Attached image' })}
+                    failedText={t('chat.image_preview_failed', {
+                        defaultValue: 'The attached image could not be displayed.',
+                    })}
+                />
+            ))}
+            {text !== '' &&
+                (role === 'assistant' ? (
+                    <MarkdownRenderer>{text}</MarkdownRenderer>
+                ) : (
+                    <p className='whitespace-pre-wrap text-sm'>{text}</p>
+                ))}
+        </div>
+    );
+}
 
 export default function MessageList({ messages, isLoading, onEditConfirm, onRegenerate, onSystemPromptChange }) {
     const bottomRef = useRef(null);
@@ -21,14 +63,20 @@ export default function MessageList({ messages, isLoading, onEditConfirm, onRege
     }, [messages, isLoading]);
 
     useEffect(() => {
-        if (localEditingIdx !== null) {
-            editTextareaRef.current?.focus();
-        }
+        if (localEditingIdx !== null) editTextareaRef.current?.focus();
     }, [localEditingIdx]);
 
-    const startEditing = (idx, content) => {
-        setLocalEditingIdx(idx);
-        setEditText(content);
+    useEffect(() => {
+        if (localEditingIdx !== null && !messages[localEditingIdx]) {
+            setLocalEditingIdx(null);
+            setEditText('');
+            setShowConfirmPopover(false);
+        }
+    }, [messages, localEditingIdx]);
+
+    const startEditing = (index, content) => {
+        setLocalEditingIdx(index);
+        setEditText(getTextFromContent(content));
         setShowConfirmPopover(false);
     };
 
@@ -45,16 +93,15 @@ export default function MessageList({ messages, isLoading, onEditConfirm, onRege
         setShowConfirmPopover(false);
     };
 
-    const systemMessage = messages.length > 0 && messages[0].role === 'system' ? messages[0] : null;
-
-    // Preserve original indices while filtering out system messages
-    const displayMessages = messages.map((msg, idx) => ({ msg, idx })).filter(({ msg }) => msg.role !== 'system');
-
-    const lastAssistantEntry = [...displayMessages].reverse().find(({ msg }) => msg.role === 'assistant');
+    const systemMessage = messages[0]?.role === 'system' ? messages[0] : null;
+    const displayMessages = messages
+        .map((message, index) => ({ message, index }))
+        .filter(({ message }) => message.role !== 'system');
+    const lastAssistantEntry = [...displayMessages].reverse().find(({ message }) => message.role === 'assistant');
+    const lastMessage = messages.at(-1);
 
     return (
         <div className='flex-1 overflow-y-auto p-3 space-y-3'>
-            {/* System Prompt — collapsed by default */}
             {systemMessage && (
                 <div className='mb-2'>
                     <button
@@ -66,27 +113,26 @@ export default function MessageList({ messages, isLoading, onEditConfirm, onRege
                     {systemPromptOpen && (
                         <textarea
                             className='w-full mt-1 p-2 text-xs bg-default-50 border border-default-200 rounded-lg resize-none focus:outline-none focus:border-primary min-h-[80px]'
-                            value={systemMessage.content}
-                            onChange={(e) => onSystemPromptChange(e.target.value)}
+                            value={getTextFromContent(systemMessage.content)}
+                            onChange={(event) => onSystemPromptChange(event.target.value)}
                         />
                     )}
                 </div>
             )}
 
-            {/* Message bubbles */}
-            {displayMessages.map(({ msg, idx }) => {
-                const isUser = msg.role === 'user';
-                const isEditing = localEditingIdx === idx;
-                const isLastAssistant = lastAssistantEntry && lastAssistantEntry.idx === idx;
+            {displayMessages.map(({ message, index }) => {
+                const isUser = message.role === 'user';
+                const isEditing = localEditingIdx === index;
+                const isLastAssistant = lastAssistantEntry?.index === index;
 
                 return (
-                    <div key={idx}>
+                    <div key={message.id || index}>
                         <div className={`group flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                            {/* Edit button — user messages, left side */}
                             {isUser && !isLoading && !isEditing && (
                                 <button
                                     className='self-center mr-1 opacity-0 group-hover:opacity-100 transition-opacity text-default-300 hover:text-default-500'
-                                    onClick={() => startEditing(idx, msg.content)}
+                                    aria-label={t('chat.edit_message', { defaultValue: 'Edit message' })}
+                                    onClick={() => startEditing(index, message.content)}
                                 >
                                     <MdEdit className='text-[14px]' />
                                 </button>
@@ -99,11 +145,18 @@ export default function MessageList({ messages, isLoading, onEditConfirm, onRege
                             >
                                 {isEditing ? (
                                     <div className='space-y-2'>
+                                        {getImageParts(message.content).length > 0 && (
+                                            <p className='text-xs text-default-400'>
+                                                {t('chat.image_kept_on_edit', {
+                                                    defaultValue: 'The attached image is kept when you edit this text.',
+                                                })}
+                                            </p>
+                                        )}
                                         <textarea
                                             ref={editTextareaRef}
                                             className='w-full min-h-[60px] p-1 text-sm bg-transparent border border-default-300 rounded resize-none focus:outline-none focus:border-primary'
                                             value={editText}
-                                            onChange={(e) => setEditText(e.target.value)}
+                                            onChange={(event) => setEditText(event.target.value)}
                                         />
                                         <div className='flex gap-1 justify-end'>
                                             <Popover
@@ -117,6 +170,9 @@ export default function MessageList({ messages, isLoading, onEditConfirm, onRege
                                                         variant='flat'
                                                         color='primary'
                                                         isIconOnly
+                                                        aria-label={t('chat.confirm_edit', {
+                                                            defaultValue: 'Confirm edit',
+                                                        })}
                                                         onPress={() => setShowConfirmPopover(true)}
                                                     >
                                                         <MdCheck className='text-[14px]' />
@@ -148,31 +204,33 @@ export default function MessageList({ messages, isLoading, onEditConfirm, onRege
                                                 size='sm'
                                                 variant='flat'
                                                 isIconOnly
+                                                aria-label={t('chat.cancel_edit', { defaultValue: 'Cancel edit' })}
                                                 onPress={cancelEditing}
                                             >
                                                 <MdClose className='text-[14px]' />
                                             </Button>
                                         </div>
                                     </div>
-                                ) : msg.role === 'assistant' ? (
-                                    <MarkdownRenderer>{msg.content}</MarkdownRenderer>
                                 ) : (
-                                    <p className='whitespace-pre-wrap text-sm'>{msg.content}</p>
+                                    <MessageBody
+                                        role={message.role}
+                                        content={message.content}
+                                        t={t}
+                                    />
                                 )}
                             </div>
 
-                            {/* Edit button — assistant messages, right side */}
                             {!isUser && !isLoading && !isEditing && (
                                 <button
                                     className='self-center ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-default-300 hover:text-default-500'
-                                    onClick={() => startEditing(idx, msg.content)}
+                                    aria-label={t('chat.edit_message', { defaultValue: 'Edit message' })}
+                                    onClick={() => startEditing(index, message.content)}
                                 >
                                     <MdEdit className='text-[14px]' />
                                 </button>
                             )}
                         </div>
 
-                        {/* Regenerate button — only on the last assistant message */}
                         {isLastAssistant && !isLoading && !isEditing && (
                             <div className='flex justify-start mt-1 ml-1'>
                                 <button
@@ -188,8 +246,7 @@ export default function MessageList({ messages, isLoading, onEditConfirm, onRege
                 );
             })}
 
-            {/* Loading spinner — visible only before the first chunk arrives */}
-            {isLoading && messages[messages.length - 1]?.content === '' && (
+            {isLoading && lastMessage?.role === 'assistant' && getTextFromContent(lastMessage.content) === '' && (
                 <div className='flex justify-start'>
                     <div className='bg-default-100 rounded-lg px-3 py-2'>
                         <PulseLoader
