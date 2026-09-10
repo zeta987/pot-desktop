@@ -467,6 +467,18 @@
             "collapse_paused_run": "Collapse paused services"
         },
         "recognize": {
+            "auto_run": "Auto OCR",
+            "auto_run_hint": "The services you check below are saved permanently and used as the default selection for OCR. Every new OCR window opens with these services pre-selected and starts recognition automatically. Any other configured service can still be enabled temporarily inside an OCR window, applying only to that window.",
+            "temporary_services": "Services for this window",
+            "temporary_services_hint": "Checked services apply only to this window. The selection remains in effect for every new screenshot until the window closes and is never saved to your auto-run list.",
+            "recognize_all": "Recognize selected",
+            "no_services_selected": "No services selected. Check at least one service to start OCR.",
+            "no_text": "No text recognized.",
+            "result_label": "Result — {{name}}",
+            "auto_copy_hint": "Auto-copy applies only to the result of the service that was first in configuration order among the pre-selected services when this window opened. If that service is unchecked here or its recognition fails, no other service's result is copied instead.",
+            "service_unavailable": "Service unavailable (plugin or component missing)",
+            "language_not_supported": "This service doesn't support the selected language.",
+            "image_load_failed": "Failed to load the image: {{error}}",
             "recognize": "Recognize",
             "translate": "Translate",
             "copy_img": "Copy Image",

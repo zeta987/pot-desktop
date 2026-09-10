@@ -6,17 +6,12 @@ import React, { useState, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { Button } from '@nextui-org/react';
 import { BsPinFill } from 'react-icons/bs';
-import { atom, useAtom } from 'jotai';
 
 import WindowControl from '../../components/WindowControl';
 import { store } from '../../utils/store';
 import { osType } from '../../utils/env';
-import { useConfig } from '../../hooks';
-import ControlArea from './ControlArea';
-import ImageArea from './ImageArea';
-import TextArea from './TextArea';
-
-export const pluginListAtom = atom();
+import { useConfig } from '../../hooks/useConfig';
+import RecognitionWorkspace from './RecognitionWorkspace';
 
 let blurTimeout = null;
 
@@ -51,7 +46,7 @@ void listen('tauri://focus', () => {
 });
 
 export default function Recognize() {
-    const [pluginList, setPluginList] = useAtom(pluginListAtom);
+    const [pluginList, setPluginList] = useState(null);
     const [closeOnBlur] = useConfig('recognize_close_on_blur', false);
     const [pined, setPined] = useState(false);
     const [serviceInstanceList] = useConfig('recognize_service_list', ['system', 'tesseract']);
@@ -59,23 +54,32 @@ export default function Recognize() {
 
     const loadPluginList = async () => {
         let temp = {};
-        if (await exists(`plugins/recognize`, { dir: BaseDirectory.AppConfig })) {
-            const plugins = await readDir(`plugins/recognize`, { dir: BaseDirectory.AppConfig });
-            for (const plugin of plugins) {
-                const infoStr = await readTextFile(`plugins/recognize/${plugin.name}/info.json`, {
-                    dir: BaseDirectory.AppConfig,
-                });
-                let pluginInfo = JSON.parse(infoStr);
-                if ('icon' in pluginInfo) {
-                    const appConfigDirPath = await appConfigDir();
-                    const iconPath = await join(
-                        appConfigDirPath,
-                        `/plugins/recognize/${plugin.name}/${pluginInfo.icon}`
-                    );
-                    pluginInfo.icon = convertFileSrc(iconPath);
+        try {
+            if (await exists(`plugins/recognize`, { dir: BaseDirectory.AppConfig })) {
+                const plugins = await readDir(`plugins/recognize`, { dir: BaseDirectory.AppConfig });
+                for (const plugin of plugins) {
+                    try {
+                        const infoStr = await readTextFile(`plugins/recognize/${plugin.name}/info.json`, {
+                            dir: BaseDirectory.AppConfig,
+                        });
+                        let pluginInfo = JSON.parse(infoStr);
+                        if ('icon' in pluginInfo) {
+                            const appConfigDirPath = await appConfigDir();
+                            const iconPath = await join(
+                                appConfigDirPath,
+                                `/plugins/recognize/${plugin.name}/${pluginInfo.icon}`
+                            );
+                            pluginInfo.icon = convertFileSrc(iconPath);
+                        }
+                        temp[plugin.name] = pluginInfo;
+                    } catch (failure) {
+                        // A broken plugin must not prevent the other OCR services from loading.
+                        console.error(failure);
+                    }
                 }
-                temp[plugin.name] = pluginInfo;
             }
+        } catch (failure) {
+            console.error(failure);
         }
         setPluginList({ ...temp });
     };
@@ -106,7 +110,7 @@ export default function Recognize() {
         pluginList &&
         serviceInstanceConfigMap !== null && (
             <div
-                className={`bg-background h-screen ${
+                className={`bg-background h-screen flex flex-col overflow-hidden ${
                     osType === 'Linux' && 'rounded-[10px] border-1 border-default-100'
                 }`}
             >
@@ -114,7 +118,7 @@ export default function Recognize() {
                     data-tauri-drag-region='true'
                     className='fixed top-[5px] left-[5px] right-[5px] h-[30px]'
                 />
-                <div className={`h-[35px] flex ${osType === 'Darwin' ? 'justify-end' : 'justify-between'}`}>
+                <div className={`h-[35px] shrink-0 flex ${osType === 'Darwin' ? 'justify-end' : 'justify-between'}`}>
                     <Button
                         isIconOnly
                         size='sm'
@@ -138,20 +142,11 @@ export default function Recognize() {
                     </Button>
                     {osType !== 'Darwin' && <WindowControl />}
                 </div>
-                <div
-                    className={`${
-                        osType === 'Linux' ? 'h-[calc(100vh-87px)]' : 'h-[calc(100vh-85px)]'
-                    } grid grid-cols-2`}
-                >
-                    <ImageArea />
-                    <TextArea serviceInstanceConfigMap={serviceInstanceConfigMap} />
-                </div>
-                <div className='h-[50px]'>
-                    <ControlArea
-                        serviceInstanceList={serviceInstanceList}
-                        serviceInstanceConfigMap={serviceInstanceConfigMap}
-                    />
-                </div>
+                <RecognitionWorkspace
+                    serviceInstanceList={serviceInstanceList}
+                    serviceInstanceConfigMap={serviceInstanceConfigMap}
+                    pluginList={pluginList}
+                />
             </div>
         )
     );

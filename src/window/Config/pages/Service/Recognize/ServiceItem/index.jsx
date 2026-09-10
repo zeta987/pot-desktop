@@ -1,5 +1,5 @@
 import { RxDragHandleHorizontal } from 'react-icons/rx';
-import { Spacer, Button } from '@nextui-org/react';
+import { Spacer, Button, Switch } from '@nextui-org/react';
 import { MdDeleteOutline } from 'react-icons/md';
 import { useTranslation } from 'react-i18next';
 import { BiSolidEdit } from 'react-icons/bi';
@@ -16,7 +16,16 @@ import { osType } from '../../../../../../utils/env';
 import { useConfig } from '../../../../../../hooks';
 
 export default function ServiceItem(props) {
-    const { serviceInstanceKey, pluginList, deleteServiceInstance, setCurrentConfigKey, onConfigOpen, ...drag } = props;
+    const {
+        serviceInstanceKey,
+        pluginList,
+        deleteServiceInstance,
+        setCurrentConfigKey,
+        onConfigOpen,
+        autoRunEnabled,
+        onAutoRunChange,
+        ...drag
+    } = props;
     const { t } = useTranslation();
 
     const [serviceInstanceConfig, setServiceInstanceConfig] = useConfig(serviceInstanceKey, {});
@@ -69,6 +78,15 @@ export default function ServiceItem(props) {
                     )}
                 </div>
                 <div className='flex'>
+                    <Switch
+                        size='sm'
+                        aria-label={t('recognize.auto_run')}
+                        isSelected={autoRunEnabled}
+                        onValueChange={onAutoRunChange}
+                    >
+                        {t('recognize.auto_run')}
+                    </Switch>
+                    <Spacer x={2} />
                     <Button
                         isIconOnly
                         size='sm'
@@ -86,6 +104,7 @@ export default function ServiceItem(props) {
                         size='sm'
                         variant='light'
                         color='danger'
+                        aria-label={t('common.delete')}
                         onPress={() => {
                             deleteServiceInstance(serviceInstanceKey);
                         }}

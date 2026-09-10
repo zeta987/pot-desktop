@@ -467,6 +467,18 @@
             "collapse_paused_run": "折叠已暂停的服务"
         },
         "recognize": {
+            "auto_run": "自动识别",
+            "auto_run_hint": "下方勾选的服务会永久保存，作为 OCR 的默认预选。每个新打开的 OCR 窗口都会自动选中这些服务并立即开始识别；其他已配置的服务，仍可在 OCR 窗口中临时加开，仅对该窗口生效。",
+            "temporary_services": "本窗口服务",
+            "temporary_services_hint": "勾选的服务仅应用于本窗口，在窗口关闭前对每一张新截图都有效，且不会保存到自动识别列表。",
+            "recognize_all": "识别所选服务",
+            "no_services_selected": "尚未选择服务，请至少勾选一项再开始识别。",
+            "no_text": "未识别到文字。",
+            "result_label": "{{name}} 识别结果",
+            "auto_copy_hint": "自动复制仅套用本窗口打开时、配置顺序中第一个预选服务的结果。若在此取消勾选该服务，或该服务识别失败，都不会改为复制其他服务的结果。",
+            "service_unavailable": "服务不可用（缺少插件或组件）",
+            "language_not_supported": "该服务不支持当前选择的语言。",
+            "image_load_failed": "图片加载失败：{{error}}",
             "recognize": "重新识别",
             "translate": "翻译",
             "copy_img": "复制图片",

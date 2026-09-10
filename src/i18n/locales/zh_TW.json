@@ -464,6 +464,18 @@
             "collapse_paused_run": "摺疊已暫停的服務"
         },
         "recognize": {
+            "auto_run": "自動辨識",
+            "auto_run_hint": "下方勾選的服務會永久儲存，作為 OCR 的預設預選。每個新開啟的 OCR 視窗都會自動帶入這些服務並立即開始辨識；其他已設定的服務，仍可在 OCR 視窗中臨時加開，僅對該視窗生效。",
+            "temporary_services": "本視窗服務",
+            "temporary_services_hint": "勾選的服務僅套用於本視窗，在視窗關閉前對每一張新截圖都有效，且不會儲存到自動辨識清單。",
+            "recognize_all": "辨識所選服務",
+            "no_services_selected": "尚未選擇服務，請至少勾選一項再開始辨識。",
+            "no_text": "未辨識到文字。",
+            "result_label": "{{name}} 辨識結果",
+            "auto_copy_hint": "自動複製僅套用本視窗開啟時、設定順序中第一個預選服務的結果。若在此取消勾選該服務，或該服務辨識失敗，都不會改為複製其他服務的結果。",
+            "service_unavailable": "服務無法使用（缺少外掛程式或組件）",
+            "language_not_supported": "此服務不支援目前選擇的語言。",
+            "image_load_failed": "圖片載入失敗：{{error}}",
             "recognize": "辨識",
             "translate": "翻譯",
             "copy_img": "複製圖片",

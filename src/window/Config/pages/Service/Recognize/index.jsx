@@ -8,12 +8,30 @@ import { useToastStyle } from '../../../../../hooks';
 import SelectPluginModal from '../SelectPluginModal';
 import { osType } from '../../../../../utils/env';
 import { useConfig, deleteKey } from '../../../../../hooks';
+import { getAutoRecognitionServices } from '../../../../Recognize/utils/recognition_selection';
 import ServiceItem from './ServiceItem';
 import SelectModal from './SelectModal';
 import ConfigModal from './ConfigModal';
 
 export default function Recognize(props) {
-    const { pluginList } = props;
+    const [recognizeServiceInstanceList, setRecognizeServiceInstanceList] = useConfig('recognize_service_list', [
+        'system',
+        'tesseract',
+    ]);
+
+    return (
+        recognizeServiceInstanceList !== null && (
+            <RecognizeSettings
+                {...props}
+                recognizeServiceInstanceList={recognizeServiceInstanceList}
+                setRecognizeServiceInstanceList={setRecognizeServiceInstanceList}
+            />
+        )
+    );
+}
+
+function RecognizeSettings(props) {
+    const { pluginList, recognizeServiceInstanceList, setRecognizeServiceInstanceList } = props;
     const {
         isOpen: isSelectPluginOpen,
         onOpen: onSelectPluginOpen,
@@ -22,14 +40,16 @@ export default function Recognize(props) {
     const { isOpen: isSelectOpen, onOpen: onSelectOpen, onOpenChange: onSelectOpenChange } = useDisclosure();
     const { isOpen: isConfigOpen, onOpen: onConfigOpen, onOpenChange: onConfigOpenChange } = useDisclosure();
     const [currentConfigKey, setCurrentConfigKey] = useState('system');
-    // now it's service instance list
-    const [recognizeServiceInstanceList, setRecognizeServiceInstanceList] = useConfig('recognize_service_list', [
-        'system',
-        'tesseract',
-    ]);
+    const [recognizeAutoServiceInstanceList, setRecognizeAutoServiceInstanceList] = useConfig(
+        'recognize_auto_service_list',
+        recognizeServiceInstanceList.slice(0, 1)
+    );
 
     const { t } = useTranslation();
     const toastStyle = useToastStyle();
+
+    if (recognizeAutoServiceInstanceList === null) return null;
+    const activeAutoKeys = getAutoRecognitionServices(recognizeServiceInstanceList, recognizeAutoServiceInstanceList);
 
     const reorder = (list, startIndex, endIndex) => {
         const result = Array.from(list);
@@ -41,6 +61,7 @@ export default function Recognize(props) {
         if (!result.destination) return;
         const items = reorder(recognizeServiceInstanceList, result.source.index, result.destination.index);
         setRecognizeServiceInstanceList(items);
+        setRecognizeAutoServiceInstanceList(getAutoRecognitionServices(items, activeAutoKeys));
     };
 
     const deleteServiceInstance = (instanceKey) => {
@@ -48,7 +69,9 @@ export default function Recognize(props) {
             toast.error(t('config.service.least'), { style: toastStyle });
             return;
         } else {
-            setRecognizeServiceInstanceList(recognizeServiceInstanceList.filter((x) => x !== instanceKey));
+            const serviceInstanceList = recognizeServiceInstanceList.filter((x) => x !== instanceKey);
+            setRecognizeServiceInstanceList(serviceInstanceList);
+            setRecognizeAutoServiceInstanceList(getAutoRecognitionServices(serviceInstanceList, activeAutoKeys));
             deleteKey(instanceKey);
         }
     };
@@ -60,6 +83,17 @@ export default function Recognize(props) {
             setRecognizeServiceInstanceList(newList);
         }
     };
+    const updateAutoServiceInstanceList = (instanceKey, enabled) => {
+        const autoServiceInstanceList = new Set(activeAutoKeys);
+        if (enabled) {
+            autoServiceInstanceList.add(instanceKey);
+        } else {
+            autoServiceInstanceList.delete(instanceKey);
+        }
+        setRecognizeAutoServiceInstanceList(
+            getAutoRecognitionServices(recognizeServiceInstanceList, [...autoServiceInstanceList])
+        );
+    };
 
     return (
         <>
@@ -69,6 +103,7 @@ export default function Recognize(props) {
                     osType === 'Linux' ? 'h-[calc(100vh-140px)]' : 'h-[calc(100vh-120px)]'
                 } overflow-y-auto p-5 flex justify-between`}
             >
+                <p className='text-sm text-default-500 mb-4'>{t('recognize.auto_run_hint')}</p>
                 <DragDropContext onDragEnd={onDragEnd}>
                     <Droppable
                         droppableId='droppable'
@@ -102,6 +137,10 @@ export default function Recognize(props) {
                                                                 deleteServiceInstance={deleteServiceInstance}
                                                                 setCurrentConfigKey={setCurrentConfigKey}
                                                                 onConfigOpen={onConfigOpen}
+                                                                autoRunEnabled={activeAutoKeys.includes(x)}
+                                                                onAutoRunChange={(enabled) =>
+                                                                    updateAutoServiceInstanceList(x, enabled)
+                                                                }
                                                             />
                                                             <Spacer y={2} />
                                                         </div>
