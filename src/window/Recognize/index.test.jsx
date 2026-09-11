@@ -239,6 +239,23 @@ describe('batch OCR window', () => {
         expect(screen.getByRole('checkbox', { name: 'Beta' })).toBeInTheDocument();
     });
 
+    it('shows the whole temporary service name instead of clipping it', async () => {
+        const longName = 'Google | 哈基米 3.5FL High 文字辨識 with an unusually long instance label that keeps going';
+        native.config.set(alpha, { instanceName: longName, marker: 'alpha' });
+        native.ocr.mockImplementation(({ marker }) => `${marker} output`);
+        renderWindow();
+        await screen.findByDisplayValue('alpha output');
+
+        await userEvent.click(screen.getByRole('button', { name: 'Services for this window' }));
+        const picker = within(await screen.findByRole('group', { name: 'Services for this window' }));
+        expect(picker.getByRole('checkbox', { name: longName })).toBeInTheDocument();
+        const name = picker.getByText(longName);
+        expect(name).toHaveClass('break-words');
+        expect(name).not.toHaveClass('truncate');
+        expect(name.closest('label')).not.toHaveClass('truncate');
+        expect(name.closest('label').querySelector('.truncate, .whitespace-nowrap')).toBeNull();
+    });
+
     it('allows replacing all text in one result and retries only that service', async () => {
         native.ocr.mockImplementation(({ marker }) => `${marker} output`);
         renderWindow();

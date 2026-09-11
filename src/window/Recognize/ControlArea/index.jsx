@@ -50,7 +50,7 @@ export default function ControlArea({
                         {t('recognize.temporary_services')} ({selectedKeys.size})
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className='w-[280px] p-2'>
+                <PopoverContent className='min-w-[280px] max-w-[min(480px,calc(100vw_-_24px))] p-2'>
                     <div className='flex w-full flex-col gap-2'>
                         <Input
                             aria-label={t('recognize.search_services', { defaultValue: 'Search services' })}
@@ -86,8 +86,9 @@ export default function ControlArea({
                                         <Checkbox
                                             aria-label={displayName}
                                             classNames={{
-                                                base: 'm-0 max-w-full rounded-lg p-1 hover:bg-default-100',
-                                                label: 'flex items-center gap-1.5 truncate text-sm',
+                                                base: 'm-0 max-w-full items-start rounded-lg p-1 hover:bg-default-100',
+                                                wrapper: 'mt-0.5',
+                                                label: 'flex min-w-0 items-start gap-1.5 text-sm',
                                             }}
                                             isSelected={selectedKeys.has(instanceKey)}
                                             key={instanceKey}
@@ -105,11 +106,11 @@ export default function ControlArea({
                                             {icon ? (
                                                 <img
                                                     alt=''
-                                                    className='my-auto h-[16px] w-[16px] shrink-0'
+                                                    className='mt-0.5 h-[16px] w-[16px] shrink-0'
                                                     src={icon}
                                                 />
                                             ) : null}
-                                            <span className='truncate'>{displayName}</span>
+                                            <span className='min-w-0 break-words'>{displayName}</span>
                                         </Checkbox>
                                     );
                                 })
