@@ -7,7 +7,10 @@
             "write_clipboard": "写入剪贴板",
             "plugin": "插件",
             "coming": "敬请期待…",
-            "clear": "清空"
+            "clear": "清空",
+            "clone_service": "复制服务",
+            "clone_service_failed": "无法复制服务。",
+            "service_list_save_failed": "无法保存服务列表。"
         },
         "languages": {
             "auto": "自动检测",
@@ -464,7 +467,10 @@
             "resume": "恢复",
             "paused_run": "{{total}} 个已暂停的服务",
             "expand_paused_run": "展开已暂停的服务",
-            "collapse_paused_run": "折叠已暂停的服务"
+            "collapse_paused_run": "折叠已暂停的服务",
+            "temporary_services": "临时服务",
+            "temporary_services_hint": "仅在此窗口中运行，已保存的启用与暂停设置保持不变。",
+            "remove_temporary_service": "移除临时服务"
         },
         "recognize": {
             "auto_run": "自动识别",
@@ -487,7 +493,9 @@
             "delete_space": "删除空格",
             "preview_markdown": "预览 Markdown",
             "edit_text": "编辑文字",
-            "follow_up": "追问对话"
+            "follow_up": "追问对话",
+            "search_services": "搜索服务",
+            "no_services_found": "未找到匹配服务"
         },
         "chat": {
             "title": "追问对话",
@@ -501,7 +509,18 @@
             "regenerate_prompt": "从此处重新生成？",
             "regenerate": "重新生成",
             "yes": "是",
-            "no": "否"
+            "no": "否",
+            "error": "错误",
+            "error_endpoint": "端点",
+            "error_model": "模型",
+            "image_error_hint": "此对话包含图片。配置的端点或模型可能不支持图片输入，或不接受此图片大小。请选择支持图片输入的服务后重试。",
+            "no_service_config": "此窗口没有可用的对话服务配置。请先配置服务，再重新打开对话。",
+            "attached_image": "附加图片",
+            "image_preview_failed": "无法显示附加图片。",
+            "image_kept_on_edit": "编辑此文本时将保留附加图片。",
+            "edit_message": "编辑消息",
+            "confirm_edit": "确认编辑",
+            "cancel_edit": "取消编辑"
         }
     }
 }

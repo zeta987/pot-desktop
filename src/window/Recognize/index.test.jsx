@@ -157,7 +157,7 @@ describe('batch OCR window', () => {
         expect(await screen.findByDisplayValue('alpha output')).toBeInTheDocument();
 
         await userEvent.click(screen.getByRole('button', { name: 'Services for this window' }));
-        await userEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Beta' }));
+        await userEvent.click(await screen.findByRole('checkbox', { name: 'Beta' }));
 
         expect(await screen.findByDisplayValue('beta output')).toBeInTheDocument();
         expect(screen.getByDisplayValue('alpha output')).toBeInTheDocument();
@@ -181,6 +181,79 @@ describe('batch OCR window', () => {
         expect(await screen.findByDisplayValue('beta replacement')).toBeInTheDocument();
         expect(screen.queryByDisplayValue('alpha original')).not.toBeInTheDocument();
         expect(native.ocr).toHaveBeenCalledTimes(4);
+    });
+
+    it('keeps multiple OCR results readable inside the scrolling result column', async () => {
+        native.ocr.mockImplementation(({ marker }) => `${marker} output`);
+        renderWindow();
+
+        await screen.findByDisplayValue('alpha output');
+        await screen.findByDisplayValue('beta output');
+        const resultAreas = screen.getAllByRole('region');
+
+        expect(resultAreas).toHaveLength(2);
+        for (const resultArea of resultAreas) {
+            expect(resultArea).toHaveClass('min-h-[320px]', 'flex-shrink-0');
+            expect(resultArea).not.toHaveClass('max-h-[300px]');
+        }
+        expect(resultAreas[0].parentElement).toHaveClass('overflow-y-auto');
+    });
+
+    it('filters temporary services by label, service, and instance id while preserving hidden selections', async () => {
+        native.config.set(alpha, { instanceName: 'Friendly Vision', marker: 'alpha' });
+        native.ocr.mockImplementation(({ marker }) => `${marker} output`);
+        renderWindow();
+        await screen.findByDisplayValue('alpha output');
+        await screen.findByDisplayValue('beta output');
+
+        await userEvent.click(screen.getByRole('button', { name: 'Services for this window' }));
+        const search = await screen.findByRole('textbox', { name: 'Search services' });
+
+        await userEvent.type(search, 'FRIENDLY');
+        expect(screen.getByRole('checkbox', { name: 'Friendly Vision' })).toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Beta' })).not.toBeInTheDocument();
+
+        await userEvent.clear(search);
+        await userEvent.type(search, 'PLUGIN_BETA');
+        expect(screen.getByRole('checkbox', { name: 'Beta' })).toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Friendly Vision' })).not.toBeInTheDocument();
+
+        await userEvent.clear(search);
+        await userEvent.type(search, 'PLUGIN_BETA@SECOND');
+        expect(screen.getByRole('checkbox', { name: 'Beta' })).toBeInTheDocument();
+
+        await userEvent.clear(search);
+        await userEvent.type(search, 'SECOND');
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Beta' }));
+        await userEvent.clear(search);
+
+        expect(screen.getByRole('checkbox', { name: 'Friendly Vision' })).toBeChecked();
+        expect(screen.getByRole('checkbox', { name: 'Beta' })).not.toBeChecked();
+        expect(screen.getByDisplayValue('alpha output')).toBeInTheDocument();
+        expect(screen.queryByRole('region', { name: /Beta/ })).not.toBeInTheDocument();
+
+        await userEvent.type(search, 'no matching service');
+        expect(screen.getByRole('status')).toHaveTextContent('No matching services');
+        await userEvent.click(screen.getByRole('button', { name: 'clear input' }));
+        expect(screen.getByRole('checkbox', { name: 'Friendly Vision' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Beta' })).toBeInTheDocument();
+    });
+
+    it('shows the whole temporary service name instead of clipping it', async () => {
+        const longName = 'Google | 哈基米 3.5FL High 文字辨識 with an unusually long instance label that keeps going';
+        native.config.set(alpha, { instanceName: longName, marker: 'alpha' });
+        native.ocr.mockImplementation(({ marker }) => `${marker} output`);
+        renderWindow();
+        await screen.findByDisplayValue('alpha output');
+
+        await userEvent.click(screen.getByRole('button', { name: 'Services for this window' }));
+        const picker = within(await screen.findByRole('group', { name: 'Services for this window' }));
+        expect(picker.getByRole('checkbox', { name: longName })).toBeInTheDocument();
+        const name = picker.getByText(longName);
+        expect(name).toHaveClass('break-words');
+        expect(name).not.toHaveClass('truncate');
+        expect(name.closest('label')).not.toHaveClass('truncate');
+        expect(name.closest('label').querySelector('.truncate, .whitespace-nowrap')).toBeNull();
     });
 
     it('allows replacing all text in one result and retries only that service', async () => {
@@ -299,7 +372,7 @@ describe('batch OCR window', () => {
         const firstWindow = renderWindow();
         await screen.findByDisplayValue('alpha output');
         await userEvent.click(screen.getByRole('button', { name: 'Services for this window' }));
-        await userEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Beta' }));
+        await userEvent.click(await screen.findByRole('checkbox', { name: 'Beta' }));
         await screen.findByDisplayValue('beta output');
         firstWindow.unmount();
 
@@ -376,8 +449,8 @@ describe('batch OCR window', () => {
         renderWindow();
         await screen.findByDisplayValue('alpha output');
         await userEvent.click(screen.getByRole('button', { name: 'Services for this window' }));
-        await userEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Beta' }));
-        await userEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Alpha' }));
+        await userEvent.click(await screen.findByRole('checkbox', { name: 'Beta' }));
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Alpha' }));
         await userEvent.keyboard('{Escape}');
         await screen.findByDisplayValue('beta output');
         native.writeText.mockClear();
@@ -395,7 +468,7 @@ describe('batch OCR window', () => {
         expect(native.config.get('recognize_auto_service_list')).toEqual([alpha]);
     });
 
-    it('opens follow-up chat with only that card text and instance configuration', async () => {
+    it('opens follow-up chat with the selected OCR card image, text, and instance configuration', async () => {
         native.config.set(alpha, {
             instanceName: 'Alpha',
             marker: 'alpha',
@@ -420,17 +493,81 @@ describe('batch OCR window', () => {
         expect(chatCall).toBeDefined();
         const context = JSON.parse(chatCall[1].context);
         expect(context).toMatchObject({
-            source: 'recognize',
-            sourceText: 'beta answer',
-            resultText: 'beta answer',
+            version: 1,
+            kind: 'recognize',
+            autoSubmit: false,
             apiConfig: {
+                service: 'openai',
                 apiKey: 'test-only-beta',
                 requestPath: 'https://beta.invalid/v1/chat/completions',
                 model: 'beta-model',
+                stream: true,
             },
         });
-        expect(context.initialMessages[0].content).toBe(
-            'The following text was recognized from an image via OCR:\n\nbeta answer'
-        );
+        expect(context.initialMessages).toHaveLength(1);
+        expect(context.initialMessages[0].role).toBe('user');
+        expect(context.initialMessages[0].content[0]).toEqual({
+            type: 'image_url',
+            image_url: { url: 'data:image/png;base64,IMAGE' },
+        });
+        expect(context.initialMessages[0].content[1]).toMatchObject({ type: 'text' });
+        expect(context.initialMessages[0].content[1].text).toContain('beta answer');
+    });
+
+    it('opens image-only follow-up chat when OCR returns no text', async () => {
+        native.config.set(alpha, {
+            instanceName: 'Alpha',
+            marker: 'alpha',
+            apiKey: 'test-only-alpha',
+            requestPath: 'https://alpha.invalid/v1/chat/completions',
+            model: 'alpha-model',
+        });
+        native.config.set('recognize_auto_service_list', [alpha]);
+        native.ocr.mockResolvedValue('');
+        renderWindow();
+
+        const alphaArea = within(await screen.findByRole('region', { name: /Alpha/ }));
+        const followUp = alphaArea.getByRole('button', { name: 'Follow-up Chat' });
+        await waitFor(() => expect(followUp).toBeEnabled());
+        await userEvent.click(followUp);
+
+        const chatCall = native.invoke.mock.calls.find(([command]) => command === 'open_chat_window');
+        const context = JSON.parse(chatCall[1].context);
+        expect(context.initialMessages).toEqual([
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'image_url',
+                        image_url: { url: 'data:image/png;base64,IMAGE' },
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('keeps text-only follow-up available when no OCR image exists', async () => {
+        native.config.set(alpha, {
+            instanceName: 'Alpha',
+            marker: 'alpha',
+            apiKey: 'test-only-alpha',
+            requestPath: 'https://alpha.invalid/v1/chat/completions',
+            model: 'alpha-model',
+        });
+        native.config.set('recognize_auto_service_list', [alpha]);
+        native.invoke.mockImplementation(async (command, args) => {
+            if (command === 'get_base64') return '';
+            if (command === 'run_binary') return native.ocr(args.args);
+        });
+        renderWindow();
+
+        const alphaArea = within(await screen.findByRole('region', { name: /Alpha/ }));
+        await userEvent.click(alphaArea.getByRole('button', { name: 'Edit Text' }));
+        await userEvent.type(alphaArea.getByRole('textbox'), 'manually entered OCR text');
+        await userEvent.click(alphaArea.getByRole('button', { name: 'Follow-up Chat' }));
+
+        const chatCall = native.invoke.mock.calls.find(([command]) => command === 'open_chat_window');
+        const context = JSON.parse(chatCall[1].context);
+        expect(context.initialMessages).toEqual([{ role: 'user', content: 'manually entered OCR text' }]);
     });
 });
