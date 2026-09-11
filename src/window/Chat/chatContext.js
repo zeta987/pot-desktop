@@ -103,7 +103,8 @@ export function buildSystemPrompt({ kind, languageName } = {}) {
         return (
             `Reply in ${language}. You are a helpful assistant. The user may attach the original image from an ` +
             'OCR run together with its recognized text. Treat the image as the authoritative source when the text ' +
-            'is incomplete, garbled, or contradicts the image.'
+            'is incomplete, garbled, or contradicts the image. For the first response, explain the supplied image ' +
+            "or recognized text, including its meaning and key details. For later turns, answer the user's follow-up question."
         );
     }
     if (kind === CHAT_KIND_TRANSLATE) {
@@ -143,7 +144,7 @@ export function buildRecognitionChatContext({ text, imageBase64, apiConfig } = {
     return {
         version: CHAT_CONTEXT_VERSION,
         kind: CHAT_KIND_RECOGNIZE,
-        autoSubmit: false,
+        autoSubmit: content !== null,
         apiConfig: apiConfig || null,
         initialMessages: content === null ? [] : [{ role: 'user', content }],
     };

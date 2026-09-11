@@ -495,7 +495,7 @@ describe('batch OCR window', () => {
         expect(context).toMatchObject({
             version: 1,
             kind: 'recognize',
-            autoSubmit: false,
+            autoSubmit: true,
             apiConfig: {
                 service: 'openai',
                 apiKey: 'test-only-beta',
