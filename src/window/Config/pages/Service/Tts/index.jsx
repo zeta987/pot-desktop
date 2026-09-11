@@ -7,10 +7,15 @@ import React, { useState } from 'react';
 import { useToastStyle } from '../../../../../hooks';
 import SelectPluginModal from '../SelectPluginModal';
 import { osType } from '../../../../../utils/env';
-import { useConfig, deleteKey } from '../../../../../hooks';
+import { deleteKey } from '../../../../../hooks';
+import { cloneServiceInstance as cloneServiceInstanceConfig } from '../../../../../utils/clone_service_instance';
+import { useServiceInstanceList } from '../useServiceInstanceList';
+import { createServiceListReorder } from '../service_list_reorder';
 import ServiceItem from './ServiceItem';
 import SelectModal from './SelectModal';
 import ConfigModal from './ConfigModal';
+
+const SERVICE_LIST_KEY = 'tts_service_list';
 
 export default function Tts(props) {
     const { pluginList } = props;
@@ -23,40 +28,52 @@ export default function Tts(props) {
     const { isOpen: isConfigOpen, onOpen: onConfigOpen, onOpenChange: onConfigOpenChange } = useDisclosure();
     const [currentConfigKey, setCurrentConfigKey] = useState('lingva_tts');
     // now it's service instance list
-    const [ttsServiceInstanceList, setTtsServiceInstanceList] = useConfig('tts_service_list', ['lingva_tts']);
+    const [ttsServiceInstanceList, updateTtsServiceInstanceList, runTtsServiceListOperation] = useServiceInstanceList(
+        SERVICE_LIST_KEY,
+        ['lingva_tts']
+    );
 
     const { t } = useTranslation();
     const toastStyle = useToastStyle();
-
-    const reorder = (list, startIndex, endIndex) => {
-        const result = Array.from(list);
-        const [removed] = result.splice(startIndex, 1);
-        result.splice(endIndex, 0, removed);
-        return result;
+    const showListSaveError = () => {
+        toast.error(t('common.service_list_save_failed', { defaultValue: 'Could not save service list.' }), {
+            style: toastStyle,
+        });
     };
+
     const onDragEnd = async (result) => {
         if (!result.destination) return;
-        const items = reorder(ttsServiceInstanceList, result.source.index, result.destination.index);
-        setTtsServiceInstanceList(items);
+        const reorderCurrentList = createServiceListReorder(ttsServiceInstanceList, result);
+        await updateTtsServiceInstanceList(reorderCurrentList).catch(showListSaveError);
     };
 
-    const deleteServiceInstance = (instanceKey) => {
-        if (ttsServiceInstanceList.length === 1) {
-            toast.error(t('config.service.least'), { style: toastStyle });
-            return;
-        } else {
-            setTtsServiceInstanceList(ttsServiceInstanceList.filter((x) => x !== instanceKey));
+    const deleteServiceInstance = async (instanceKey) => {
+        await runTtsServiceListOperation(async ({ getCurrentList, persistCurrentList }) => {
+            const currentList = getCurrentList() ?? [];
+            if (currentList.length === 1) {
+                toast.error(t('config.service.least'), { style: toastStyle });
+                return;
+            }
+            await persistCurrentList(currentList.filter((x) => x !== instanceKey));
             deleteKey(instanceKey);
-        }
+        }).catch(showListSaveError);
     };
-    const updateServiceInstanceList = (instanceKey) => {
-        if (ttsServiceInstanceList.includes(instanceKey)) {
-            return;
-        } else {
-            const newList = [...ttsServiceInstanceList, instanceKey];
-            setTtsServiceInstanceList(newList);
-        }
-    };
+    const updateServiceInstanceList = (instanceKey) =>
+        updateTtsServiceInstanceList((currentList) =>
+            currentList.includes(instanceKey) ? currentList : [...currentList, instanceKey]
+        ).catch(showListSaveError);
+    const cloneServiceInstance = (instanceKey) =>
+        runTtsServiceListOperation(({ getCurrentList, publishCurrentList }) =>
+            cloneServiceInstanceConfig(instanceKey, {
+                listKey: SERVICE_LIST_KEY,
+                getCurrentList,
+                publishCurrentList,
+            })
+        ).catch(() => {
+            toast.error(t('common.clone_service_failed', { defaultValue: 'Could not duplicate service.' }), {
+                style: toastStyle,
+            });
+        });
 
     return (
         <>
@@ -97,6 +114,7 @@ export default function Tts(props) {
                                                                 key={x}
                                                                 pluginList={pluginList}
                                                                 deleteServiceInstance={deleteServiceInstance}
+                                                                cloneServiceInstance={cloneServiceInstance}
                                                                 setCurrentConfigKey={setCurrentConfigKey}
                                                                 onConfigOpen={onConfigOpen}
                                                             />

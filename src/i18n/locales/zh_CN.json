@@ -7,7 +7,10 @@
             "write_clipboard": "写入剪贴板",
             "plugin": "插件",
             "coming": "敬请期待…",
-            "clear": "清空"
+            "clear": "清空",
+            "clone_service": "复制服务",
+            "clone_service_failed": "无法复制服务。",
+            "service_list_save_failed": "无法保存服务列表。"
         },
         "languages": {
             "auto": "自动检测",
@@ -464,9 +467,24 @@
             "resume": "恢复",
             "paused_run": "{{total}} 个已暂停的服务",
             "expand_paused_run": "展开已暂停的服务",
-            "collapse_paused_run": "折叠已暂停的服务"
+            "collapse_paused_run": "折叠已暂停的服务",
+            "temporary_services": "临时服务",
+            "temporary_services_hint": "仅在此窗口中运行，已保存的启用与暂停设置保持不变。",
+            "remove_temporary_service": "移除临时服务"
         },
         "recognize": {
+            "auto_run": "自动识别",
+            "auto_run_hint": "下方勾选的服务会永久保存，作为 OCR 的默认预选。每个新打开的 OCR 窗口都会自动选中这些服务并立即开始识别；其他已配置的服务，仍可在 OCR 窗口中临时加开，仅对该窗口生效。",
+            "temporary_services": "本窗口服务",
+            "temporary_services_hint": "勾选的服务仅应用于本窗口，在窗口关闭前对每一张新截图都有效，且不会保存到自动识别列表。",
+            "recognize_all": "识别所选服务",
+            "no_services_selected": "尚未选择服务，请至少勾选一项再开始识别。",
+            "no_text": "未识别到文字。",
+            "result_label": "{{name}} 识别结果",
+            "auto_copy_hint": "自动复制仅套用本窗口打开时、配置顺序中第一个预选服务的结果。若在此取消勾选该服务，或该服务识别失败，都不会改为复制其他服务的结果。",
+            "service_unavailable": "服务不可用（缺少插件或组件）",
+            "language_not_supported": "该服务不支持当前选择的语言。",
+            "image_load_failed": "图片加载失败：{{error}}",
             "recognize": "重新识别",
             "translate": "翻译",
             "copy_img": "复制图片",
@@ -475,7 +493,9 @@
             "delete_space": "删除空格",
             "preview_markdown": "预览 Markdown",
             "edit_text": "编辑文字",
-            "follow_up": "追问对话"
+            "follow_up": "追问对话",
+            "search_services": "搜索服务",
+            "no_services_found": "未找到匹配服务"
         },
         "chat": {
             "title": "追问对话",
@@ -489,7 +509,18 @@
             "regenerate_prompt": "从此处重新生成？",
             "regenerate": "重新生成",
             "yes": "是",
-            "no": "否"
+            "no": "否",
+            "error": "错误",
+            "error_endpoint": "端点",
+            "error_model": "模型",
+            "image_error_hint": "此对话包含图片。配置的端点或模型可能不支持图片输入，或不接受此图片大小。请选择支持图片输入的服务后重试。",
+            "no_service_config": "此窗口没有可用的对话服务配置。请先配置服务，再重新打开对话。",
+            "attached_image": "附加图片",
+            "image_preview_failed": "无法显示附加图片。",
+            "image_kept_on_edit": "编辑此文本时将保留附加图片。",
+            "edit_message": "编辑消息",
+            "confirm_edit": "确认编辑",
+            "cancel_edit": "取消编辑"
         }
     }
 }

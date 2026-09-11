@@ -7,7 +7,10 @@
             "write_clipboard": "Write to Clipboard",
             "plugin": "Plugin",
             "coming": "Coming soon…",
-            "clear": "Clear"
+            "clear": "Clear",
+            "clone_service": "Duplicate service",
+            "clone_service_failed": "Could not duplicate service.",
+            "service_list_save_failed": "Could not save service list."
         },
         "languages": {
             "auto": "Auto Detect",
@@ -464,9 +467,24 @@
             "resume": "Resume",
             "paused_run": "{{total}} paused services",
             "expand_paused_run": "Expand paused services",
-            "collapse_paused_run": "Collapse paused services"
+            "collapse_paused_run": "Collapse paused services",
+            "temporary_services": "Temporary services",
+            "temporary_services_hint": "Runs only in this window; saved enabled and paused settings stay unchanged.",
+            "remove_temporary_service": "Remove temporary service"
         },
         "recognize": {
+            "auto_run": "Auto OCR",
+            "auto_run_hint": "The services you check below are saved permanently and used as the default selection for OCR. Every new OCR window opens with these services pre-selected and starts recognition automatically. Any other configured service can still be enabled temporarily inside an OCR window, applying only to that window.",
+            "temporary_services": "Services for this window",
+            "temporary_services_hint": "Checked services apply only to this window. The selection remains in effect for every new screenshot until the window closes and is never saved to your auto-run list.",
+            "recognize_all": "Recognize selected",
+            "no_services_selected": "No services selected. Check at least one service to start OCR.",
+            "no_text": "No text recognized.",
+            "result_label": "Result — {{name}}",
+            "auto_copy_hint": "Auto-copy applies only to the result of the service that was first in configuration order among the pre-selected services when this window opened. If that service is unchecked here or its recognition fails, no other service's result is copied instead.",
+            "service_unavailable": "Service unavailable (plugin or component missing)",
+            "language_not_supported": "This service doesn't support the selected language.",
+            "image_load_failed": "Failed to load the image: {{error}}",
             "recognize": "Recognize",
             "translate": "Translate",
             "copy_img": "Copy Image",
@@ -475,7 +493,9 @@
             "delete_space": "Delete Space",
             "preview_markdown": "Preview Markdown",
             "edit_text": "Edit Text",
-            "follow_up": "Follow-up Chat"
+            "follow_up": "Follow-up Chat",
+            "search_services": "Search services",
+            "no_services_found": "No matching services"
         },
         "chat": {
             "title": "Follow-up Chat",
@@ -489,7 +509,18 @@
             "regenerate_prompt": "Regenerate from this point?",
             "regenerate": "Regenerate",
             "yes": "Yes",
-            "no": "No"
+            "no": "No",
+            "error": "Error",
+            "error_endpoint": "Endpoint",
+            "error_model": "Model",
+            "image_error_hint": "This conversation contains an image. The configured endpoint or model may not accept image input, or may reject this image size. Choose a service that supports image input and try again.",
+            "no_service_config": "No chat service configuration was passed to this window. Configure a chat service and open the chat again.",
+            "attached_image": "Attached image",
+            "image_preview_failed": "The attached image could not be displayed.",
+            "image_kept_on_edit": "The attached image is kept when you edit this text.",
+            "edit_message": "Edit message",
+            "confirm_edit": "Confirm edit",
+            "cancel_edit": "Cancel edit"
         }
     }
 }

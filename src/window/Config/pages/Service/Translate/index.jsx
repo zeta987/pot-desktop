@@ -7,10 +7,15 @@ import React, { useState } from 'react';
 import { useToastStyle } from '../../../../../hooks';
 import SelectPluginModal from '../SelectPluginModal';
 import { osType } from '../../../../../utils/env';
-import { useConfig, deleteKey } from '../../../../../hooks';
+import { deleteKey } from '../../../../../hooks';
+import { cloneServiceInstance as cloneServiceInstanceConfig } from '../../../../../utils/clone_service_instance';
+import { useServiceInstanceList } from '../useServiceInstanceList';
+import { createServiceListReorder } from '../service_list_reorder';
 import ServiceItem from './ServiceItem';
 import SelectModal from './SelectModal';
 import ConfigModal from './ConfigModal';
+
+const SERVICE_LIST_KEY = 'translate_service_list';
 
 export default function Translate(props) {
     const { pluginList } = props;
@@ -23,47 +28,50 @@ export default function Translate(props) {
     const { isOpen: isConfigOpen, onOpen: onConfigOpen, onOpenChange: onConfigOpenChange } = useDisclosure();
     const [currentConfigKey, setCurrentConfigKey] = useState('deepl');
     // now it's service instance list
-    const [translateServiceInstanceList, setTranslateServiceInstanceList] = useConfig('translate_service_list', [
-        'deepl',
-        'bing',
-        'lingva',
-        'yandex',
-        'google',
-        'ecdict',
-    ]);
+    const [translateServiceInstanceList, updateTranslateServiceInstanceList, runTranslateServiceListOperation] =
+        useServiceInstanceList(SERVICE_LIST_KEY, ['deepl', 'bing', 'lingva', 'yandex', 'google', 'ecdict']);
 
     const { t } = useTranslation();
     const toastStyle = useToastStyle();
-
-    const reorder = (list, startIndex, endIndex) => {
-        const result = Array.from(list);
-        const [removed] = result.splice(startIndex, 1);
-        result.splice(endIndex, 0, removed);
-        return result;
+    const showListSaveError = () => {
+        toast.error(t('common.service_list_save_failed', { defaultValue: 'Could not save service list.' }), {
+            style: toastStyle,
+        });
     };
+
     const onDragEnd = async (result) => {
         if (!result.destination) return;
-        const items = reorder(translateServiceInstanceList, result.source.index, result.destination.index);
-        setTranslateServiceInstanceList(items);
+        const reorderCurrentList = createServiceListReorder(translateServiceInstanceList, result);
+        await updateTranslateServiceInstanceList(reorderCurrentList).catch(showListSaveError);
     };
 
-    const deleteServiceInstance = (instanceKey) => {
-        if (translateServiceInstanceList.length === 1) {
-            toast.error(t('config.service.least'), { style: toastStyle });
-            return;
-        } else {
-            setTranslateServiceInstanceList(translateServiceInstanceList.filter((x) => x !== instanceKey));
+    const deleteServiceInstance = async (instanceKey) => {
+        await runTranslateServiceListOperation(async ({ getCurrentList, persistCurrentList }) => {
+            const currentList = getCurrentList() ?? [];
+            if (currentList.length === 1) {
+                toast.error(t('config.service.least'), { style: toastStyle });
+                return;
+            }
+            await persistCurrentList(currentList.filter((x) => x !== instanceKey));
             deleteKey(instanceKey);
-        }
+        }).catch(showListSaveError);
     };
-    const updateServiceInstanceList = (instanceKey) => {
-        if (translateServiceInstanceList.includes(instanceKey)) {
-            return;
-        } else {
-            const newList = [...translateServiceInstanceList, instanceKey];
-            setTranslateServiceInstanceList(newList);
-        }
-    };
+    const updateServiceInstanceList = (instanceKey) =>
+        updateTranslateServiceInstanceList((currentList) =>
+            currentList.includes(instanceKey) ? currentList : [...currentList, instanceKey]
+        ).catch(showListSaveError);
+    const cloneServiceInstance = (instanceKey) =>
+        runTranslateServiceListOperation(({ getCurrentList, publishCurrentList }) =>
+            cloneServiceInstanceConfig(instanceKey, {
+                listKey: SERVICE_LIST_KEY,
+                getCurrentList,
+                publishCurrentList,
+            })
+        ).catch(() => {
+            toast.error(t('common.clone_service_failed', { defaultValue: 'Could not duplicate service.' }), {
+                style: toastStyle,
+            });
+        });
 
     return (
         <>
@@ -104,6 +112,7 @@ export default function Translate(props) {
                                                                 serviceInstanceKey={x}
                                                                 pluginList={pluginList}
                                                                 deleteServiceInstance={deleteServiceInstance}
+                                                                cloneServiceInstance={cloneServiceInstance}
                                                                 setCurrentConfigKey={setCurrentConfigKey}
                                                                 onConfigOpen={onConfigOpen}
                                                             />

@@ -1,3 +1,13 @@
+## 未发布
+
+- OCR 追问会携带原图，并在后续对话中保留。有图时，即使没有识别出文字也能发起追问；无图时，已有识别文字仍可用于文字追问。图片输入需要所配置的模型和接口支持，请求失败时会显示错误信息。([#7](https://github.com/zeta987/pot-desktop/issues/7))
+- 增大同时显示多个 OCR 结果时的阅读区域。([#8](https://github.com/zeta987/pot-desktop/issues/8))
+- 临时 OCR 服务菜单支持按关键词筛选，隐藏的选项保留原有勾选状态。([#9](https://github.com/zeta987/pot-desktop/issues/9))
+- 翻译、OCR、语音合成及收藏服务支持复制实例配置，包含 API 地址和密钥。复制按钮位于删除按钮左侧，点击即可创建副本，无需确认。([#10](https://github.com/zeta987/pot-desktop/issues/10))
+- 翻译结果生成期间不再自动向下滚动。([#11](https://github.com/zeta987/pot-desktop/issues/11))
+- 翻译窗口支持临时添加服务以对比结果，不改变已保存的启用或暂停状态。([#12](https://github.com/zeta987/pot-desktop/issues/12))
+- 新建翻译对话时自动解释原文与所选服务的译文。后续追问保留原文、译文、首次解释和对话历史，并沿用所选服务的设置。([#13](https://github.com/zeta987/pot-desktop/issues/13))
+
 ## 3.0.9 (2026-08-20)
 
 A small bug-fix release on top of 3.0.8. For everything this fork adds over upstream

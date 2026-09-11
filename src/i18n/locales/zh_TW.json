@@ -7,7 +7,10 @@
             "write_clipboard": "寫入剪貼簿",
             "plugin": "外掛程式",
             "coming": "即將推出…",
-            "clear": "清除"
+            "clear": "清除",
+            "clone_service": "複製服務",
+            "clone_service_failed": "無法複製服務。",
+            "service_list_save_failed": "無法儲存服務清單。"
         },
         "languages": {
             "auto": "自動偵測",
@@ -461,9 +464,24 @@
             "resume": "恢復",
             "paused_run": "{{total}} 個已暫停的服務",
             "expand_paused_run": "展開已暫停的服務",
-            "collapse_paused_run": "摺疊已暫停的服務"
+            "collapse_paused_run": "摺疊已暫停的服務",
+            "temporary_services": "臨時服務",
+            "temporary_services_hint": "僅在此視窗中執行，已儲存的啟用與暫停設定保持不變。",
+            "remove_temporary_service": "移除臨時服務"
         },
         "recognize": {
+            "auto_run": "自動辨識",
+            "auto_run_hint": "下方勾選的服務會永久儲存，作為 OCR 的預設預選。每個新開啟的 OCR 視窗都會自動帶入這些服務並立即開始辨識；其他已設定的服務，仍可在 OCR 視窗中臨時加開，僅對該視窗生效。",
+            "temporary_services": "本視窗服務",
+            "temporary_services_hint": "勾選的服務僅套用於本視窗，在視窗關閉前對每一張新截圖都有效，且不會儲存到自動辨識清單。",
+            "recognize_all": "辨識所選服務",
+            "no_services_selected": "尚未選擇服務，請至少勾選一項再開始辨識。",
+            "no_text": "未辨識到文字。",
+            "result_label": "{{name}} 辨識結果",
+            "auto_copy_hint": "自動複製僅套用本視窗開啟時、設定順序中第一個預選服務的結果。若在此取消勾選該服務，或該服務辨識失敗，都不會改為複製其他服務的結果。",
+            "service_unavailable": "服務無法使用（缺少外掛程式或組件）",
+            "language_not_supported": "此服務不支援目前選擇的語言。",
+            "image_load_failed": "圖片載入失敗：{{error}}",
             "recognize": "辨識",
             "translate": "翻譯",
             "copy_img": "複製圖片",
@@ -472,7 +490,9 @@
             "delete_space": "刪除空格",
             "preview_markdown": "預覽 Markdown",
             "edit_text": "編輯文字",
-            "follow_up": "追問對話"
+            "follow_up": "追問對話",
+            "search_services": "搜尋服務",
+            "no_services_found": "找不到相符服務"
         },
         "chat": {
             "title": "追問對話",
@@ -486,7 +506,18 @@
             "regenerate_prompt": "從此處重新生成？",
             "regenerate": "重新生成",
             "yes": "是",
-            "no": "否"
+            "no": "否",
+            "error": "錯誤",
+            "error_endpoint": "端點",
+            "error_model": "模型",
+            "image_error_hint": "此對話包含圖片。設定的端點或模型可能不支援圖片輸入，或不接受此圖片大小。請選擇支援圖片輸入的服務後重試。",
+            "no_service_config": "此視窗沒有可用的對話服務設定。請先設定服務，再重新開啟對話。",
+            "attached_image": "附加圖片",
+            "image_preview_failed": "無法顯示附加圖片。",
+            "image_kept_on_edit": "編輯此文字時將保留附加圖片。",
+            "edit_message": "編輯訊息",
+            "confirm_edit": "確認編輯",
+            "cancel_edit": "取消編輯"
         }
     }
 }

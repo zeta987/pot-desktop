@@ -29,6 +29,34 @@ function buildHeaders(service, apiKey) {
     };
 }
 
+function redactSensitiveText(value, secrets = []) {
+    let text = String(value ?? '');
+    text = text.replace(/(https?:\/\/)[^@\s/:]+:[^@\s/]+@/gi, '$1[credentials omitted]@');
+    text = text.replace(/([?&](?:api[-_]?key|key|token|access_token)=)[^\s&#)]+/gi, '$1[credential omitted]');
+    text = text.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=_-]+/g, '[image data omitted]');
+    for (const secret of secrets) {
+        if (typeof secret === 'string' && secret !== '') {
+            text = text.split(secret).join('[credential omitted]');
+        }
+    }
+    return text;
+}
+
+function describeRequest(url, model) {
+    let endpoint = url;
+    try {
+        const safeUrl = new URL(url);
+        safeUrl.username = '';
+        safeUrl.password = '';
+        safeUrl.search = '';
+        safeUrl.hash = '';
+        endpoint = safeUrl.href;
+    } catch {
+        // The invalid URL is redacted by the caller before it is displayed.
+    }
+    return model ? `${endpoint} (model: ${model})` : endpoint;
+}
+
 /**
  * Send a chat message with streaming support.
  *
@@ -43,8 +71,17 @@ function buildHeaders(service, apiKey) {
 export function chatStream({ apiConfig, messages, onChunk, onComplete, onError }) {
     const { service = 'openai', requestPath, model, apiKey, stream = true, requestArguments } = apiConfig;
 
-    const url = buildApiUrl(requestPath, service);
-    const headers = buildHeaders(service, apiKey);
+    const reportError = (message) => onError(redactSensitiveText(message, [apiKey]));
+
+    let url;
+    let headers;
+    try {
+        url = buildApiUrl(requestPath, service);
+        headers = buildHeaders(service, apiKey);
+    } catch {
+        reportError('Invalid request path.');
+        return () => {};
+    }
 
     let defaultArgs = {};
     if (requestArguments) {
@@ -69,18 +106,35 @@ export function chatStream({ apiConfig, messages, onChunk, onComplete, onError }
         aborted = true;
     };
 
+    let payload;
+    try {
+        payload = JSON.stringify(body);
+    } catch (error) {
+        reportError(`Could not serialize the request for ${describeRequest(url, model)}\n${error.toString()}`);
+        return abort;
+    }
+
     if (stream) {
         // Use window.fetch for streaming support
         window
             .fetch(url, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(body),
+                body: payload,
             })
             .then(async (res) => {
                 if (!res.ok) {
-                    const errorText = await res.text();
-                    onError(`Http Status: ${res.status}\n${errorText}`);
+                    let errorText = '(no response body)';
+                    try {
+                        errorText = await res.text();
+                    } catch {
+                        // Keep the fallback error body.
+                    }
+                    reportError(`Http Status: ${res.status}\n${describeRequest(url, model)}\n${errorText}`);
+                    return;
+                }
+                if (!res.body) {
+                    reportError(`The response from ${describeRequest(url, model)} carried no readable stream body.`);
                     return;
                 }
 
@@ -124,7 +178,7 @@ export function chatStream({ apiConfig, messages, onChunk, onComplete, onError }
             })
             .catch((e) => {
                 if (!aborted) {
-                    onError(e.toString());
+                    reportError(`${e.toString()}\n${describeRequest(url, model)}`);
                 }
             });
     } else {
@@ -143,15 +197,17 @@ export function chatStream({ apiConfig, messages, onChunk, onComplete, onError }
                         onChunk(content);
                         onComplete(content);
                     } else {
-                        onError('Unexpected response format');
+                        reportError(`Unexpected response format from ${describeRequest(url, model)}`);
                     }
                 } else {
-                    onError(`Http Status: ${res.status}\n${JSON.stringify(res.data)}`);
+                    reportError(
+                        `Http Status: ${res.status}\n${describeRequest(url, model)}\n${JSON.stringify(res.data)}`
+                    );
                 }
             })
             .catch((e) => {
                 if (!aborted) {
-                    onError(e.toString());
+                    reportError(`${e.toString()}\n${describeRequest(url, model)}`);
                 }
             });
     }
