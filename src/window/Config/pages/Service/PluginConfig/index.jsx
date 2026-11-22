@@ -9,11 +9,13 @@ import { open } from '@tauri-apps/api/shell';
 import React from 'react';
 
 import { useConfig } from '../../../../../hooks';
+import { TtsPluginPreview } from './TtsPluginPreview';
 
 export function PluginConfig(props) {
-    const { instanceKey, updateServiceList, onClose, name, pluginList } = props;
+    const { instanceKey, updateServiceList, onClose, name, pluginList, pluginType, invokePlugin } = props;
     const [pluginConfig, setPluginConfig] = useConfig(instanceKey, {}, { sync: false });
     const { t } = useTranslation();
+    const isTtsPlugin = pluginType === 'tts' || pluginList?.[name]?.plugin_type === 'tts';
 
     return (
         <>
@@ -141,6 +143,25 @@ export function PluginConfig(props) {
                         ))
                     );
                 })
+            )}
+
+            {isTtsPlugin && pluginConfig && (
+                <TtsPluginPreview
+                    pluginName={name}
+                    pluginInfo={pluginList[name]}
+                    pluginConfig={pluginConfig}
+                    invokePlugin={invokePlugin}
+                    onSelectVoice={(voiceValue, voiceKey, customVoiceKey) => {
+                        const next = {
+                            ...pluginConfig,
+                            [voiceKey]: voiceValue,
+                        };
+                        if (customVoiceKey && Object.prototype.hasOwnProperty.call(next, customVoiceKey)) {
+                            next[customVoiceKey] = '';
+                        }
+                        setPluginConfig(next);
+                    }}
+                />
             )}
 
             <div>
