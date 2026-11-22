@@ -1,5 +1,5 @@
 import { INSTANCE_NAME_CONFIG_KEY } from '../../../../../utils/service_instance';
-import { Button, Input } from '@nextui-org/react';
+import { Button, Input, Switch } from '@nextui-org/react';
 import { DropdownTrigger } from '@nextui-org/react';
 import { DropdownMenu } from '@nextui-org/react';
 import { DropdownItem } from '@nextui-org/react';
@@ -71,6 +71,19 @@ export function PluginConfig(props) {
                                                 ...pluginConfig,
                                                 [x.key]: value,
                                             });
+                                        }}
+                                    />
+                                )}
+                                {x.type === 'switch' && (
+                                    <Switch
+                                        aria-label={x.display}
+                                        isSelected={
+                                            typeof pluginConfig[x.key] === 'boolean'
+                                                ? pluginConfig[x.key]
+                                                : x.default === true
+                                        }
+                                        onValueChange={(value) => {
+                                            setPluginConfig({ ...pluginConfig, [x.key]: value });
                                         }}
                                     />
                                 )}
