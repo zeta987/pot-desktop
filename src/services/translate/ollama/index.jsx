@@ -2,7 +2,8 @@ import { Language } from './info';
 import { Ollama } from 'ollama/browser';
 
 export async function translate(text, from, to, options = {}) {
-    const { config, setResult, detect } = options;
+    const { config, detect } = options;
+    const setResult = typeof options.setResult === 'function' ? options.setResult : undefined;
 
     let { stream, promptList, requestPath, model } = config;
 
@@ -30,16 +31,19 @@ export async function translate(text, from, to, options = {}) {
     if (stream) {
         let target = '';
         for await (const part of response) {
+            if (!part.message.content) continue;
             target += part.message.content;
             if (setResult) {
                 setResult(target + '_');
-            } else {
+            } else if (target.trim()) {
                 ollama.abort();
                 return '[STREAM]';
             }
         }
-        setResult(target.trim());
-        return target.trim();
+        const result = target.trim();
+        if (!result) throw new Error('Translation stream returned no text');
+        setResult?.(result);
+        return result;
     } else {
         return response.message.content;
     }

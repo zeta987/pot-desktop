@@ -2,7 +2,8 @@ import { fetch, Body } from '@tauri-apps/api/http';
 import { Language } from './info';
 
 export async function translate(text, from, to, options = {}) {
-    const { config, setResult, detect } = options;
+    const { config, detect } = options;
+    const setResult = typeof options.setResult === 'function' ? options.setResult : undefined;
 
     let { apiKey, stream, promptList, requestPath } = config;
     if (!requestPath) {
@@ -72,8 +73,10 @@ export async function translate(text, from, to, options = {}) {
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) {
-                        setResult(target.trim());
-                        return target.trim();
+                        const result = target.trim();
+                        if (!result) throw new Error('Translation stream returned no text');
+                        setResult?.(result);
+                        return result;
                     }
                     const str = temp + new TextDecoder().decode(value).replaceAll(/\s+/g, ' ');
                     const matchs = str.match(/{ \"text\": \".*\" } ],/);
@@ -84,7 +87,8 @@ export async function translate(text, from, to, options = {}) {
                                 target += result.text;
                                 if (setResult) {
                                     setResult(target + '_');
-                                } else {
+                                } else if (target.trim()) {
+                                    void reader.cancel().catch(() => {});
                                     return '[STREAM]';
                                 }
                             }

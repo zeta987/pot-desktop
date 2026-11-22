@@ -2,6 +2,63 @@ import { fetch, Body } from '@tauri-apps/api/http';
 import { Language } from './info';
 import { defaultRequestArguments } from './Config';
 
+async function readTranslationStream(body, publish) {
+    if (!body) throw new Error('Translation response did not contain a stream');
+
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let pending = '';
+    let target = '';
+    let closed = false;
+    try {
+        stream: while (!closed) {
+            const { done, value } = await reader.read();
+            closed = done;
+            pending += decoder.decode(value, { stream: !done });
+
+            const events = pending.split(/\r?\n\r?\n/);
+            pending = done ? '' : events.pop();
+            for (const event of events) {
+                const lines = event.split(/\r?\n/);
+                if (lines.includes('event: error')) throw new Error('Translation provider returned a stream error');
+                const data = lines
+                    .filter((line) => line.startsWith('data:'))
+                    .map((line) => line.slice(5).replace(/^ /, ''))
+                    .join('\n')
+                    .trim();
+                if (!data) continue;
+                if (data === '[DONE]') break stream;
+
+                let result;
+                try {
+                    result = JSON.parse(data);
+                } catch {
+                    throw new Error('Translation provider returned invalid stream data');
+                }
+                if (result?.error) throw new Error('Translation provider returned a stream error');
+
+                const text = result?.choices?.[0]?.delta?.content;
+                if (typeof text === 'string' && text) {
+                    target += text;
+                    if (publish) {
+                        publish(target + '_');
+                    } else if (target.trim()) {
+                        return '[STREAM]';
+                    }
+                }
+            }
+        }
+
+        const result = target.trim();
+        if (!result) throw new Error('Translation stream returned no text');
+        publish?.(result);
+        return result;
+    } finally {
+        if (!closed) void reader.cancel().catch(() => {});
+        reader.releaseLock();
+    }
+}
+
 export async function translate(text, from, to, options) {
     const { config, setResult, detect } = options;
 
@@ -67,53 +124,7 @@ export async function translate(text, from, to, options) {
             body: JSON.stringify(body),
         });
         if (res.ok) {
-            let target = '';
-            const reader = res.body.getReader();
-            try {
-                let temp = '';
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        setResult(target.trim());
-                        return target.trim();
-                    }
-                    const str = new TextDecoder().decode(value);
-                    let datas = str.split('data:');
-                    for (let data of datas) {
-                        if (data.trim() !== '' && data.trim() !== '[DONE]') {
-                            try {
-                                if (temp !== '') {
-                                    data = temp + data.trim();
-                                    let result = JSON.parse(data.trim());
-                                    if (result.choices[0].delta.content) {
-                                        target += result.choices[0].delta.content;
-                                        if (setResult) {
-                                            setResult(target + '_');
-                                        } else {
-                                            return '[STREAM]';
-                                        }
-                                    }
-                                    temp = '';
-                                } else {
-                                    let result = JSON.parse(data.trim());
-                                    if (result.choices[0].delta.content) {
-                                        target += result.choices[0].delta.content;
-                                        if (setResult) {
-                                            setResult(target + '_');
-                                        } else {
-                                            return '[STREAM]';
-                                        }
-                                    }
-                                }
-                            } catch {
-                                temp = data.trim();
-                            }
-                        }
-                    }
-                }
-            } finally {
-                reader.releaseLock();
-            }
+            return readTranslationStream(res.body, typeof setResult === 'function' ? setResult : undefined);
         } else {
             throw `Http Request Error\nHttp Status: ${res.status}\n${JSON.stringify(res.data)}`;
         }
