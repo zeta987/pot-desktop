@@ -104,9 +104,10 @@ export default function TextArea({
         const load = isPlugin
             ? async () => {
                   const [recognize, utils] = await invoke_plugin('recognize', serviceName);
-                  return (base64, mappedLanguage, { config }) => recognize(base64, mappedLanguage, { config, utils });
+                  return (base64, mappedLanguage, options) => recognize(base64, mappedLanguage, { ...options, utils });
               }
             : () => service.recognize;
+        const controller = new AbortController();
 
         void runRecognition(
             {
@@ -116,6 +117,7 @@ export default function TextArea({
                 language: languageMap[language],
                 config: serviceInstanceConfig,
                 deleteNewline,
+                signal: controller.signal,
                 isSuperseded,
                 onResolved: (recognizedText) => {
                     if (!isPrimary || !autoCopy || isSuperseded()) return;
@@ -148,6 +150,7 @@ export default function TextArea({
 
         return () => {
             disposed = true;
+            controller.abort();
         };
     }, [
         autoCopy,
@@ -192,7 +195,7 @@ export default function TextArea({
                 )}
             </CardHeader>
             <CardBody className='bg-content1 min-h-0 flex-1 p-0'>
-                {loading ? (
+                {loading && !text ? (
                     <div className='m-[12px] space-y-3'>
                         <Skeleton className='w-3/5 rounded-lg'>
                             <div className='h-3 w-3/5 rounded-lg bg-default-200' />
@@ -225,6 +228,7 @@ export default function TextArea({
                         className='bg-content1 h-full m-[12px] mb-0 resize-none overflow-y-auto focus:outline-none placeholder:text-default-500'
                         onChange={(event) => setText(event.target.value)}
                         placeholder={t('recognize.no_text')}
+                        readOnly={loading}
                         value={text}
                     />
                 )}
@@ -321,7 +325,7 @@ export default function TextArea({
                                     invoke('open_chat_window', {
                                         context: JSON.stringify(
                                             buildRecognitionChatContext({
-                                                text,
+                                                text: error ? '' : text,
                                                 imageBase64: image.base64,
                                                 apiConfig: {
                                                     service: 'openai',

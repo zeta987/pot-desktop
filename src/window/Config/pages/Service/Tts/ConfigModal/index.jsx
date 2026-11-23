@@ -27,8 +27,9 @@ export default function ConfigModal(props) {
             isOpen={isOpen}
             onOpenChange={onOpenChange}
             scrollBehavior='inside'
+            size='lg'
         >
-            <ModalContent className='max-h-[75vh]'>
+            <ModalContent className='max-h-[82vh]'>
                 {(onClose) => (
                     <>
                         <ModalHeader>
@@ -60,7 +61,7 @@ export default function ConfigModal(props) {
                             <ConfigComponent
                                 name={serviceName}
                                 instanceKey={serviceInstanceKey}
-                                pluginType='translate'
+                                pluginType='tts'
                                 pluginList={pluginList}
                                 updateServiceList={updateServiceInstanceList}
                                 onClose={onClose}

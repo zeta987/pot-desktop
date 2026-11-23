@@ -80,7 +80,8 @@ export default function Chat() {
     const [appLanguage] = useConfig('app_language', 'en');
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [pinned, setPinned] = useState(false);
+    const [pinned, setPinned] = useState(true);
+    const inputRef = useRef(null);
     const abortRef = useRef(null);
     const apiConfigRef = useRef(null);
     const requestIdRef = useRef(0);
@@ -90,7 +91,21 @@ export default function Chat() {
     const { t } = useTranslation();
 
     useEffect(() => {
-        appWindow.show();
+        let cancelled = false;
+        const openWindow = async () => {
+            try {
+                await appWindow.show();
+                if (cancelled) return;
+                await appWindow.setFocus();
+                if (!cancelled) inputRef.current?.focus({ preventScroll: true });
+            } catch (error) {
+                console.error('Failed to activate chat window', error);
+            }
+        };
+        void openWindow();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     useEffect(() => {
@@ -201,8 +216,12 @@ export default function Chat() {
 
     const handlePin = async () => {
         const next = !pinned;
-        setPinned(next);
-        await appWindow.setAlwaysOnTop(next);
+        try {
+            await appWindow.setAlwaysOnTop(next);
+            setPinned(next);
+        } catch (error) {
+            console.error('Failed to change chat window pin state', error);
+        }
     };
 
     const handleClear = () => {
@@ -295,6 +314,8 @@ export default function Chat() {
                             size='sm'
                             variant='light'
                             className={pinned ? 'text-primary' : ''}
+                            aria-label={pinned ? 'Unpin' : 'Pin'}
+                            aria-pressed={pinned}
                             onPress={handlePin}
                         >
                             <AiOutlinePushpin className='text-[16px]' />
@@ -320,6 +341,7 @@ export default function Chat() {
             />
 
             <InputArea
+                ref={inputRef}
                 onSend={sendMessage}
                 isLoading={isLoading}
             />

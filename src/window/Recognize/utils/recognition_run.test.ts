@@ -82,7 +82,7 @@ describe('runRecognition', () => {
             {
                 base64: 'actual-image',
                 language: { provider: 'mapped-language' },
-                options: { config: { token: 'secret' } },
+                options: { config: { token: 'secret' }, setResult: expect.any(Function) },
             },
         ]);
         expect(outcome).toEqual({ status: 'resolved', result: 'hyphenated text' });

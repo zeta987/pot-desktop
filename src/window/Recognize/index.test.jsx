@@ -150,6 +150,60 @@ describe('batch OCR window', () => {
         expect(screen.getByDisplayValue('Beta output')).toBeInTheDocument();
     });
 
+    it('shows OCR text during streaming and auto-copies only the finished result', async () => {
+        const output = deferred();
+        native.config.set('recognize_auto_service_list', [alpha]);
+        native.config.set('recognize_auto_copy', true);
+        native.pluginSource.set(
+            'plugin_alpha',
+            `
+            function recognize(base64, language, { setResult, utils }) {
+                setResult('Partial OCR text');
+                return utils.run('ocr', {});
+            }`
+        );
+        native.ocr.mockReturnValue(output.promise);
+        renderWindow();
+
+        expect(await screen.findByDisplayValue('Partial OCR text')).toBeInTheDocument();
+        expect(screen.getByRole('region', { name: /Alpha/ })).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled();
+        expect(native.writeText).not.toHaveBeenCalled();
+
+        await act(async () => output.resolve('Finished OCR text'));
+        expect(await screen.findByDisplayValue('Finished OCR text')).toBeInTheDocument();
+        expect(native.writeText).toHaveBeenCalledExactlyOnceWith('Finished OCR text');
+    });
+
+    it('aborts a replaced OCR stream and ignores its later updates', async () => {
+        const oldOutput = deferred();
+        native.config.set('recognize_auto_service_list', [alpha]);
+        native.pluginSource.set(
+            'plugin_alpha',
+            `
+            function recognize(base64, language, { setResult, signal, utils }) {
+                return utils.run('ocr', { setResult, signal });
+            }`
+        );
+        native.ocr.mockReturnValueOnce(oldOutput.promise).mockReturnValue('New OCR text');
+        renderWindow();
+        await waitFor(() => expect(native.ocr).toHaveBeenCalledTimes(1));
+        const [oldRun] = native.ocr.mock.calls[0];
+        expect(oldRun.signal.aborted).toBe(false);
+
+        act(() => {
+            for (const callback of native.listeners.get('new_image')) void callback({});
+        });
+        expect(await screen.findByDisplayValue('New OCR text')).toBeInTheDocument();
+        expect(oldRun.signal.aborted).toBe(true);
+
+        await act(async () => {
+            oldRun.setResult('Stale OCR text');
+            oldOutput.resolve('Stale final text');
+        });
+        expect(screen.getByDisplayValue('New OCR text')).toBeInTheDocument();
+    });
+
     it('adds a temporary service without repeating or replacing the existing result or saved selection', async () => {
         native.config.set('recognize_auto_service_list', [alpha]);
         native.ocr.mockImplementation(({ marker }) => `${marker} output`);
@@ -495,7 +549,7 @@ describe('batch OCR window', () => {
         expect(context).toMatchObject({
             version: 1,
             kind: 'recognize',
-            autoSubmit: false,
+            autoSubmit: true,
             apiConfig: {
                 service: 'openai',
                 apiKey: 'test-only-beta',
@@ -543,6 +597,32 @@ describe('batch OCR window', () => {
                     },
                 ],
             },
+        ]);
+    });
+
+    it('opens image-only follow-up chat after a stream fails with partial OCR text', async () => {
+        native.config.set(alpha, {
+            apiKey: 'test-only-alpha',
+            requestPath: 'https://alpha.invalid/v1/chat/completions',
+        });
+        native.config.set('recognize_auto_service_list', [alpha]);
+        native.pluginSource.set(
+            'plugin_alpha',
+            `
+            function recognize(base64, language, { setResult, utils }) {
+                setResult('Unfinished result');
+                return utils.run('ocr', {});
+            }`
+        );
+        native.ocr.mockRejectedValue(new Error('Stream interrupted'));
+        renderWindow();
+
+        await screen.findByDisplayValue('Error: Stream interrupted');
+        await userEvent.click(screen.getByRole('button', { name: 'Follow-up Chat' }));
+        const [, args] = native.invoke.mock.calls.find(([command]) => command === 'open_chat_window');
+        const { initialMessages } = JSON.parse(args.context);
+        expect(initialMessages[0].content).toEqual([
+            { type: 'image_url', image_url: { url: 'data:image/png;base64,IMAGE' } },
         ]);
     });
 

@@ -1,10 +1,9 @@
 import { Button } from '@nextui-org/react';
 import { useTranslation } from 'react-i18next';
 import { IoMdSend } from 'react-icons/io';
-import React, { useRef } from 'react';
+import React, { forwardRef } from 'react';
 
-export default function InputArea({ onSend, isLoading }) {
-    const inputRef = useRef(null);
+export default forwardRef(function InputArea({ onSend, isLoading }, inputRef) {
     const { t } = useTranslation();
 
     const handleSend = () => {
@@ -51,4 +50,4 @@ export default function InputArea({ onSend, isLoading }) {
             </Button>
         </div>
     );
-}
+});

@@ -421,6 +421,8 @@ pub fn chat_window(label: &str) {
     .additional_browser_args("--disable-web-security")
     .focused(true)
     .title("Chat")
+    // A newly activated chat must be able to appear above pinned source windows.
+    .always_on_top(true)
     .visible(false);
 
     #[cfg(target_os = "macos")]

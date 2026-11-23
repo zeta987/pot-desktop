@@ -20,7 +20,7 @@ describe('chat launch contexts', () => {
             apiConfig,
         });
 
-        expect(context).toMatchObject({ version: 1, kind: 'recognize', autoSubmit: false, apiConfig });
+        expect(context).toMatchObject({ version: 1, kind: 'recognize', autoSubmit: true, apiConfig });
         expect(context.initialMessages).toHaveLength(1);
         expect(context.initialMessages[0].role).toBe('user');
         expect(getImageParts(context.initialMessages[0].content)).toEqual([
@@ -34,11 +34,19 @@ describe('chat launch contexts', () => {
 
     it('supports image-only and text-only OCR launch contexts', () => {
         const imageOnly = buildRecognitionChatContext({ imageBase64: IMAGE_BASE64 });
+        expect(imageOnly.autoSubmit).toBe(true);
         expect(getImageParts(imageOnly.initialMessages[0].content)).toHaveLength(1);
         expect(getTextFromContent(imageOnly.initialMessages[0].content)).toBe('');
 
         const textOnly = buildRecognitionChatContext({ text: 'recognized words' });
+        expect(textOnly.autoSubmit).toBe(true);
         expect(textOnly.initialMessages).toEqual([{ role: 'user', content: 'recognized words' }]);
+    });
+
+    it('does not auto-submit an OCR context with no image or recognized text', () => {
+        const context = buildRecognitionChatContext({ text: '  ', imageBase64: '  ' });
+        expect(context.autoSubmit).toBe(false);
+        expect(context.initialMessages).toEqual([]);
     });
 
     it('asks once to explain the original and selected translation', () => {

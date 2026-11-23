@@ -3,6 +3,9 @@ export const LANGUAGE_NOT_SUPPORTED = 'Language not supported';
 
 export interface RecognizeCallOptions {
     config: unknown;
+    /** Publish the visible recognition text accumulated so far. */
+    setResult: (text: string) => void;
+    signal?: AbortSignal;
 }
 
 /** The call every OCR Service Instance answers after plugin-specific utilities are bound. */
@@ -35,6 +38,7 @@ export interface RecognitionRunRequest {
     language: unknown;
     config: unknown;
     deleteNewline?: boolean;
+    signal?: AbortSignal;
     /** True once the caller no longer owns the Target Area, such as after retry or unmount. */
     isSuperseded?: () => boolean;
     /**
@@ -94,14 +98,23 @@ export async function runRecognition(
     }
 
     let providerResult: unknown;
+    let acceptsPartialText = true;
     try {
-        providerResult = await recognize(request.base64, request.language, { config: request.config });
+        providerResult = await recognize(request.base64, request.language, {
+            config: request.config,
+            signal: request.signal,
+            setResult: (text) => {
+                if (acceptsPartialText && !isSuperseded()) area.setText(text);
+            },
+        });
     } catch (failure) {
         if (isSuperseded()) {
             return { status: 'superseded' };
         }
         fail(failure);
         return { status: 'rejected', error: failure };
+    } finally {
+        acceptsPartialText = false;
     }
 
     if (isSuperseded()) {
