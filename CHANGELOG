@@ -1,14 +1,76 @@
 ## 3.0.10 (2026-11-23)
 
-- OCR 追问会携带原图，并在后续对话中保留。有图时，即使没有识别出文字也能发起追问；无图时，已有识别文字仍可用于文字追问。图片输入需要所配置的模型和接口支持，请求失败时会显示错误信息。([#7](https://github.com/zeta987/pot-desktop/issues/7))
-- 增大同时显示多个 OCR 结果时的阅读区域。([#8](https://github.com/zeta987/pot-desktop/issues/8))
-- 临时 OCR 服务菜单支持按关键词筛选，隐藏的选项保留原有勾选状态。([#9](https://github.com/zeta987/pot-desktop/issues/9))
-- 翻译、OCR、语音合成及收藏服务支持复制实例配置，包含 API 地址和密钥。复制按钮位于删除按钮左侧，点击即可创建副本，无需确认。([#10](https://github.com/zeta987/pot-desktop/issues/10))
-- 翻译结果生成期间不再自动向下滚动。([#11](https://github.com/zeta987/pot-desktop/issues/11))
-- 翻译窗口支持临时添加服务以对比结果，不改变已保存的启用或暂停状态。([#12](https://github.com/zeta987/pot-desktop/issues/12))
-- 新建翻译对话时自动解释原文与所选服务的译文。后续追问保留原文、译文、首次解释和对话历史，并沿用所选服务的设置。([#13](https://github.com/zeta987/pot-desktop/issues/13))
-- OCR 插件支持流式输出显示，识别过程中实时展示返回内容，并支持在重试或关闭窗口时中止请求。(`7d76b15`)
-- 语音合成（TTS）插件设置页新增语音预览试听面板：内置台湾正体中文默认试听例句、按所选模型动态切换声音画廊（覆盖 OpenAI 与 Gemini 全部声音）、内存缓存即时回放，并支持限流并发的一键全测（一鍵全測）批量预载与中途停止。
+Feature and usability improvements across OCR, translation, follow-up chat, service management,
+and TTS plugin voice previews on top of 3.0.9.
+
+本次在 3.0.9 的基礎上，針對文字辨識（OCR）、翻譯視窗、追問對話、服務設定管理，以及語音合成（TTS）外掛試聽帶來多項功能與體驗改進。
+
+### New Features
+
+- **Image-aware OCR follow-up chat** — OCR follow-up conversations now attach the captured
+  image and carry it through subsequent turns. Follow-up chat can be started whenever an image
+  is present even if no text was recognised, and text-only follow-up continues to work when
+  only recognised text is available. Image input requires a vision-capable model and endpoint;
+  failed requests display the error message.
+  ([#7](https://github.com/zeta987/pot-desktop/issues/7))
+
+  **OCR 追問支援攜帶原圖** — OCR 追問對話會附上擷取的原圖，並在後續對話中持續保留。只要有原圖，即使沒有辨識出任何文字也能發起追問；若沒有圖片，已辨識的文字仍可用於純文字追問。圖片輸入需要所設定的模型與 API 端點支援，請求失敗時會顯示錯誤訊息。
+
+- **Streamed OCR plugin output** — OCR plugins now display streamed results live during
+  recognition, and abort in-flight requests cleanly when retrying or closing the window.
+  (`7d76b15`)
+
+  **OCR 外掛支援串流輸出顯示** — OCR 外掛在辨識過程中可即時顯示串流回傳內容，並支援於重試或關閉視窗時乾淨中止進行中的請求。
+
+- **TTS plugin voice preview & one-click batch pre-fetch** — Added an in-settings voice
+  preview panel for TTS plugins, featuring a default Taiwan Traditional Chinese sample
+  sentence, a model-aware voice gallery covering all OpenAI and Gemini voices, instant
+  in-memory replay caching, and rate-limited one-click batch pre-fetching ("一鍵全測") with
+  mid-run cancellation.
+
+  **語音合成（TTS）外掛設定頁新增語音預覽試聽與一鍵全測** — 內建台灣繁體中文預設試聽例句、依所選模型動態切換的聲音畫廊（涵蓋 OpenAI 與 Gemini 全部聲音）、記憶體快取即時重播，並支援限制並行數的一鍵全測批次預載與中途停止。
+
+- **Temporary translation services for side-by-side comparison** — The translate window now
+  supports adding temporary services to compare results without altering saved enabled or
+  paused states. ([#12](https://github.com/zeta987/pot-desktop/issues/12))
+
+  **翻譯視窗支援臨時加開服務比對** — 可在翻譯視窗中臨時加入其他服務來對照譯文，不會更動原本已儲存的啟用或暫停狀態。
+
+- **Auto-explain translations on chat open** — Opening a new follow-up chat from a
+  translation automatically explains the source text and the selected service's translation.
+  Subsequent turns retain the source text, translation, initial explanation, conversation
+  history, and the selected service's settings.
+  ([#13](https://github.com/zeta987/pot-desktop/issues/13))
+
+  **開啟翻譯追問時自動解說並保留完整上下文** — 新建翻譯對話時會自動解說原文與所選服務的譯文；後續追問會持續保留原文、譯文、初次解說與對話紀錄，並沿用所選服務的設定。
+
+- **Duplicate service instance configurations** — Translation, OCR, TTS, and collection
+  services can now duplicate an existing instance configuration, including its API endpoint
+  and key. Click the copy button to the left of the delete button to create a copy
+  immediately without a confirmation dialog.
+  ([#10](https://github.com/zeta987/pot-desktop/issues/10))
+
+  **所有服務設定支援一鍵複製實例** — 翻譯、OCR、語音合成與收藏服務均支援複製既有的實例設定（包含 API 位址與金鑰）。複製按鈕位於刪除按鈕左側，點一下即可直接建立副本，不需額外確認。
+
+### Improvements
+
+- **Larger reading area for multiple OCR results** — Increased the display area height when
+  viewing multiple OCR results side by side.
+  ([#8](https://github.com/zeta987/pot-desktop/issues/8))
+
+  **擴大同時顯示多個 OCR 結果時的閱讀區域** — 提升多組 OCR 辨識結果同時呈現時的可視高度與閱讀空間。
+
+- **Keyword filtering for the temporary OCR service menu** — The temporary OCR service picker
+  now supports filtering by keyword while preserving the checked state of hidden entries.
+  ([#9](https://github.com/zeta987/pot-desktop/issues/9))
+
+  **臨時 OCR 服務選單支援關鍵字篩選** — 選單新增關鍵字即時篩選功能，被隱藏的項目仍會保留原本的勾選狀態。
+
+- **No forced auto-scroll during streaming translation** — Stopped automatically scrolling
+  downward while translation output is being generated so readers keep their scroll position.
+  ([#11](https://github.com/zeta987/pot-desktop/issues/11))
+
+  **翻譯結果生成期間不再自動向下捲動** — 取消生成譯文時的強制自動捲動行為，方便在閱讀過程中停留在目前位置。
 
 ## 3.0.9 (2026-08-20)
 

@@ -17,6 +17,14 @@ This working copy is the personal fork **`zeta987/pot-desktop`** (`origin`). The
 
 If a change genuinely looks worth contributing upstream, describe the proposal to the user and wait for an explicit go-ahead before touching anything on `pot-app/pot-desktop`.
 
+## Release Notes & CHANGELOG
+
+All GitHub Release notes and `CHANGELOG` entries in `zeta987/pot-desktop` must be written in **Traditional Chinese (Taiwan, 台灣繁體中文)** — never Simplified Chinese.
+
+-   Write version `CHANGELOG` entries and GitHub Release notes bilingually in **English + Traditional Chinese (Taiwan, 台灣繁體中文)** (matching the bilingual structure used from `3.0.9` onward).
+-   Use authentic Taiwan technical terminology (e.g., 視窗、選單、設定、外掛、捲動、辨識、串流、記憶體快取、批次).
+-   Avoid CommonMark bold-delimiter leaks in CJK text: insert spaces around `**...**` whenever adjacent to fullwidth punctuation (such as `）`, `」`, `》`) next to CJK characters, or keep punctuation outside the bold span.
+
 ## Agent skills
 
 ### Issue tracker
