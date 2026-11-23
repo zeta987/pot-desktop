@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 wget https://nodejs.org/dist/v19.8.1/node-v19.8.1-linux-x64.tar.xz
 tar -Jxvf ./node-v19.8.1-linux-x64.tar.xz
@@ -19,7 +20,7 @@ elif [ "$INPUT_TARGET" = "i686-unknown-linux-gnu" ]; then
     dpkg --add-architecture i386
     apt-get update
     apt-get install -y libstdc++6:i386 libgdk-pixbuf2.0-dev:i386 libatomic1:i386 gcc-multilib g++-multilib libwebkit2gtk-4.0-dev:i386 libssl-dev:i386 libgtk-3-dev:i386 librsvg2-dev:i386 patchelf:i386 libxdo-dev:i386 libxcb1:i386 libxrandr2:i386 libdbus-1-3:i386 libayatana-appindicator3-dev:i386
-    export PKG_CONFIG_PATH=/usr/lib/i386-linux-gnu/pkgconfig/:$PKG_CONFIG_PATH
+    export PKG_CONFIG_PATH="/usr/lib/i386-linux-gnu/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
     export PKG_CONFIG_SYSROOT_DIR=/
 elif [ "$INPUT_TARGET" = "aarch64-unknown-linux-gnu" ]; then
     dpkg --add-architecture arm64

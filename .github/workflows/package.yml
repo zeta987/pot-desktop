@@ -179,16 +179,6 @@ jobs:
             matrix:
                 platform: [windows-latest]
                 target: [x86_64-pc-windows-msvc, i686-pc-windows-msvc, aarch64-pc-windows-msvc]
-                include:
-                    - os: windows-latest
-                      target: x86_64-pc-windows-msvc
-                      toolchain: stable-x86_64-pc-windows-msvc
-                    - os: windows-latest
-                      target: i686-pc-windows-msvc
-                      toolchain: stable-i686-pc-windows-msvc
-                    - os: windows-latest
-                      target: aarch64-pc-windows-msvc
-                      toolchain: stable-aarch64-pc-windows-msvc
         runs-on: ${{ matrix.platform }}
         steps:
             - uses: actions/download-artifact@v4
@@ -202,8 +192,9 @@ jobs:
               uses: dtolnay/rust-toolchain@stable
             - name: install dependencies
               run: |
+                  # Cross-compile from the x86_64 host toolchain; Rust 1.100 dropped
+                  # i686-pc-windows-msvc host tools, so only rust-std for the target is needed.
                   rustup target add ${{ matrix.target }}
-                  rustup toolchain install --force-non-host ${{ matrix.toolchain }}
             - name: Setup pnpm
               uses: pnpm/action-setup@v4
               with:
@@ -239,18 +230,12 @@ jobs:
                 platform: [windows-latest]
                 target: [x86_64-pc-windows-msvc, i686-pc-windows-msvc, aarch64-pc-windows-msvc]
                 include:
-                    - os: windows-latest
+                    - target: x86_64-pc-windows-msvc
                       arch: x64
-                      target: x86_64-pc-windows-msvc
-                      toolchain: stable-x86_64-pc-windows-msvc
-                    - os: windows-latest
+                    - target: i686-pc-windows-msvc
                       arch: x86
-                      target: i686-pc-windows-msvc
-                      toolchain: stable-i686-pc-windows-msvc
-                    - os: windows-latest
+                    - target: aarch64-pc-windows-msvc
                       arch: arm64
-                      target: aarch64-pc-windows-msvc
-                      toolchain: stable-aarch64-pc-windows-msvc
         runs-on: ${{ matrix.platform }}
         steps:
             - uses: actions/download-artifact@v4
@@ -264,8 +249,9 @@ jobs:
               uses: dtolnay/rust-toolchain@stable
             - name: install dependencies
               run: |
+                  # Cross-compile from the x86_64 host toolchain; Rust 1.100 dropped
+                  # i686-pc-windows-msvc host tools, so only rust-std for the target is needed.
                   rustup target add ${{ matrix.target }}
-                  rustup toolchain install --force-non-host ${{ matrix.toolchain }}
             - name: Setup pnpm
               uses: pnpm/action-setup@v4
               with:
